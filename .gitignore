@@ -3,6 +3,9 @@ refs/
 tbls/
 data/
 
+# VSCode specific
+.vscode/
+
 # Rlang specific 
 # History files
 .Rhistory
