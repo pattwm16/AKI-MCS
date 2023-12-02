@@ -35,4 +35,8 @@ tab1 <- table1(
   )
 
 t1flex(tab1) %>% 
+  bg(bg = "white", part = "all") %>%
   save_as_docx(path="tbls/table1.docx")
+
+t1flex(tab1) %>% 
+  save_as_image(path="tbls/table1.png")
