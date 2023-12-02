@@ -26,7 +26,7 @@ clean <- data %>%
   # create groupings
   mutate(
     group = case_when(redcap_event_name %in% group_1 ~ "ECLS",
-                      redcap_event_name %in% group_2 ~ "ECMELLA")
+                      redcap_event_name %in% group_2 ~ "ECMELLA") %>% as.factor()
     ) %>%
   
   # PSM features
