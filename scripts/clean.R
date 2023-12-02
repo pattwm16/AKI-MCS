@@ -24,31 +24,36 @@ other_cs <- c("“{reason_ecls_other}", "Acute Lung Injury",
 
 clean <- data %>%
   # create groupings
-  mutate(group = case_when(redcap_event_name %in% group_1 ~ 1,
-                           redcap_event_name %in% group_2 ~ 2)) %>%
-  #PSM features
-  mutate(age = coalesce(data$age_ecls_1, data$age_ecls_2),
-         sex = sex.factor,
-         bmi = (weight / (height/100)^2),
-         lactate = pre_lactate,          # TODO: is this the correct lactate?
-         vis_score = as.numeric(pre_vis) # TODO: is this the correct vis score?
-         ) %>%
+  mutate(
+    group = case_when(redcap_event_name %in% group_1 ~ "ECLS",
+                      redcap_event_name %in% group_2 ~ "ECMELLA")
+    ) %>%
+  
+  # PSM features
+  mutate(
+    age       = coalesce(data$age_ecls_1, data$age_ecls_2),
+    sex       = sex.factor,
+    bmi       = (weight / (height/100)^2), 
+    lactate   = pre_lactate,          # TODO: the correct lactate?
+    vis_score = as.numeric(pre_vis)   # TODO: correct vis score?
+    ) %>%
   
   # table 1
-  mutate(diabetes   = as.logical(diabetes),
-         ckd_yn     = as.logical(ckd),
-         ckd_stage  = ckd_spec,
-         copd_yn    = as.logical(copd),
-         copd_stage = copd_spec,
-         ph         = ph,
-         rrt_type   = renal_repl.factor,
-         cr         = crea,
-         mi_yn      = as.logical(pre_cardiac_arrest),
-         postcard   = as.logical(pre_postcard),
-         cpb_fail   = as.logical(pre_failure_cpb),
-         ecpr       = (reason_ecls.factor == "Cardiopulmonary Reanimation"),
-         #nephtox_rx = ... TODO: need order of antibiotic_spec___1
-         ) %>%
+  mutate(
+    diabetes    = as.logical(diabetes),
+    ckd_yn      = as.logical(ckd),
+    ckd_stage   = as.factor(ckd_spec),
+    copd_yn     = as.logical(copd),
+    copd_stage  = as.factor(copd_spec),
+    ph          = ph,
+    rrt_type    = renal_repl.factor,
+    cr          = crea,
+    mi_yn       = as.logical(pre_cardiac_arrest),
+    postcard    = as.logical(pre_postcard),
+    cpb_fail    = as.logical(pre_failure_cpb),
+    ecpr        = (reason_ecls.factor == "Cardiopulmonary Reanimation"),
+    #nephtox_rx = ... TODO: need order of antibiotic_spec___1
+    ) %>%
   
   # causes of cardiogenic shock
   mutate(
@@ -56,10 +61,12 @@ clean <- data %>%
     cs_amics = case_when(
     (reason_ecls.factor == "Cardiopulmonary Reanimation" & mi_yn) | reason_ecls.factor == "Acute Myocardial Infarction" ~ T,
     .default = F),
+    
     # AHF-CS
     cs_ahf = case_when(
       reason_ecls.factor %in% c("Dilatative Cardiomyopathy", "Ischemic Cardiomyopathy") ~ T,
       .default = F),
+    
     # PCCS
     cs_pccs = case_when(
       reason_ecls.factor == "Cardiopulmonary Reanimation" & (postcard | cpb_fail) ~ T,
@@ -70,6 +77,16 @@ clean <- data %>%
       .default = F)
     ) %>%
   
+  mutate(
+    cs_etiology = case_when(
+      cs_amics ~ "AMICS",
+      cs_ahf ~ "AHF",
+      cs_pccs ~ "PCCS",
+      cs_other ~ "Other",
+      .default = "No cardiogenic shock"
+      )
+    ) %>%
+  
   # aki staging
   mutate(
     #aki_1 = ...
@@ -77,6 +94,8 @@ clean <- data %>%
     #aki_3 = ...
     rrt_yn = (rrt_type %in% c("Continuous Hemofiltration", "Hemodialysis"))
     ) %>%
+  
+  # fill vertically for time-invariant factors
   group_by(record_id) %>%
   fill(id, age, sex, bmi, vis_score, diabetes, ckd_yn, ckd_stage, copd_yn, 
        copd_stage, mi_yn, postcard, cpb_fail, ecpr,
@@ -97,7 +116,7 @@ constructed <- clean %>%
          redcap_repeat_instance, id, 
          group, age, sex, bmi, lactate, vis_score, diabetes, ckd_yn, 
          ckd_stage, copd_yn, copd_stage, ph, rrt_yn, rrt_type, cr, mi_yn, 
-         postcard,cpb_fail, ecpr, cs_amics, cs_ahf, cs_pccs, cs_other)
+         postcard,cpb_fail, ecpr, cs_etiology)
 
 # examine data distribution and types
 write_csv(constructed, "data/cleaned_analysis_data.csv",
