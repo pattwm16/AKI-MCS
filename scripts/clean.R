@@ -115,9 +115,9 @@ clean <- data %>%
   
   # aki staging
   mutate(
-    #aki_1 = ...
-    #aki_2 = ...
-    #aki_3 = ...
+    aki_s1 = ((aki_1_1 == 1) | (aki_1_2 == 1)),
+    aki_s2 = (aki_2 == 2),
+    aki_s3 = ((aki_3_1 == 3) | (aki_3_2 == 3)),
     rrt_yn = (rrt_type %in% c("Continuous Hemofiltration", "Hemodialysis"))
     ) %>%
   
@@ -125,6 +125,7 @@ clean <- data %>%
   group_by(record_id) %>%
   fill(id, age, sex, bmi, vis_score, diabetes, death, ckd_yn, ckd_stage, copd_yn, 
        copd_stage, lactate, mi_yn, postcard, cpb_fail, ecpr, cs_etiology,
+       aki_s1, aki_s2, aki_s3,
        .direction = "downup")
 
   # time (vertical) variables
@@ -255,9 +256,38 @@ vent_duration <- vent_duration %>%
          max_ph = as.double(max_ph)) %>%
   rows_patch(ph_cr_median)
 
-    #icu_los = ...
-    #hosp_los = ...
-    #hosp_surv_yn = ...
+
+# create hosp_los
+lengths_of_stay <- vent_duration %>%
+  mutate(hosp_admit_date = as.Date(pat_admit_date, format = "%m/%d/%y"),
+         hosp_disch_date = as.Date(discharg_hospital_date, format = "%m/%d/%y")
+         ) %>% 
+  select(record_id, hosp_admit_date, hosp_disch_date, death_date) %>%
+  fill(hosp_admit_date, hosp_disch_date, death_date, .direction = "downup") %>%
+  group_by(record_id) %>%
+  # TODO: which to use to calc if there is both a discharge and death?
+  mutate(
+    admit_disch_los = hosp_disch_date - hosp_admit_date,
+    admit_death_los = death_date - hosp_admit_date,
+    hosp_los        = case_when(is.na(hosp_disch_date) ~ admit_death_los,
+                               !is.na(hosp_disch_date) ~ admit_disch_los,
+                               .default = NA)
+  ) %>%
+  filter(row_number()==1)
+
+vent_duration <- vent_duration %>%
+  add_column(hosp_admit_date = NA, hosp_disch_date = NA, hosp_los = NA,
+             admit_disch_los = NA, admit_death_los = NA) %>%
+  mutate(hosp_admit_date = as.Date(hosp_admit_date, format = "%m/%d/%y"),
+         hosp_disch_date = as.Date(hosp_disch_date, format = "%m/%d/%y"),
+         hosp_los = as.difftime(as.character(hosp_los), units = 'days'),
+         admit_disch_los = as.difftime(as.character(admit_disch_los), units = 'days'),
+         admit_death_los = as.difftime(as.character(admit_death_los), units = "days")) %>%
+  rows_patch(lengths_of_stay)
+
+
+# hosp_surv_yn = ...
+# icu_los = ...
 
 # create ever received nephrotoxic drugs
 nephrotox_rx <- vent_duration %>%
@@ -284,7 +314,8 @@ constructed <- vent_duration %>%
          max_ph, bmi, lactate, vis_score, diabetes, ckd_yn, ckd_stage, copd_yn, 
          copd_stage, rrt_yn,rrt_type, rrt_duration, mi_yn, postcard, cpb_fail, 
          ecpr, cs_etiology, vent_type, vent_duration, extub_reason, extub_date, 
-         intub_date, death, death_date, aki_yn, abx_yn, rx_nephrotox,
+         intub_date, death, death_date, aki_yn, aki_s1, aki_s2, aki_s3,
+         abx_yn, rx_nephrotox,
          any_abx, cefuroxim, piptazo, meropenem, vanc_iv, vanc_po, linezolid,
          dapto, pcn_g, flucoxciln, rifampicin, gentamycin, tobramycin, 
          ciproflox, other_abx, erythromyc, caspofungn, amph_b_inh, metronid
