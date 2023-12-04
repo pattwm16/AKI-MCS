@@ -116,9 +116,9 @@ clean <- data %>%
   
   # aki staging
   mutate(
-    aki_s1 = ((aki_1_1 == 1) | (aki_1_2 == 1)),
-    aki_s2 = (aki_2 == 2),
-    aki_s3 = ((aki_3_1 == 3) | (aki_3_2 == 3)),
+    aki_s1 = as.logical((aki_1_1 == 1) | (aki_1_2 == 1)),
+    aki_s2 = as.logical((aki_2 == 2)),
+    aki_s3 = as.logical(((aki_3_1 == 3) | (aki_3_2 == 3))),
     rrt_yn = (rrt_type %in% c("Continuous Hemofiltration", "Hemodialysis"))
     ) %>%
   
@@ -232,6 +232,7 @@ vent_duration <- vent_duration %>%
 ph_cr_median <- vent_duration %>%
   filter(redcap_repeat_instrument == "labor") %>%
   group_by(id) %>%
+  mutate(ph = as.numeric(ph)) %>% # TODO: unclear why this is needed?
   mutate(med_cr = median(cr, na.rm = T),
          max_cr = max(cr, na.rm = F),
          min_cr = min(cr, na.rm = F),
@@ -257,7 +258,7 @@ vent_duration <- vent_duration %>%
          max_ph = as.double(max_ph)) %>%
   rows_patch(ph_cr_median)
 
-
+# TODO: getting negative ventilation and hospital stay
 # create hosp_los
 lengths_of_stay <- vent_duration %>%
   mutate(hosp_admit_date = as.Date(pat_admit_date, format = "%m/%d/%y"),
@@ -323,7 +324,7 @@ constructed <- vent_duration %>%
     rx_nephrotox,
     # hospital stay
     hosp_admit_date, hosp_disch_date, hosp_los, admit_disch_los, 
-    admit_death_los,
+    admit_death_los, hosp_surv_yn,
     # clinical markers
     med_cr, min_cr, max_cr, med_ph, min_ph, max_ph, lactate, vis_score, 
     # rrt
@@ -340,9 +341,13 @@ constructed <- vent_duration %>%
     ) %>%
   group_by(record_id) %>%
   filter(row_number()==1) %>% # condense to a single row per patient
-  filter(!is.na(death))       # only include patient with outcomes
-
+  filter(!is.na(death)) %>%      # only include patient with outcomes
+  filter(hosp_los >= lubridate::ddays(0)) %>%  # TODO: 347 and 850 died before admitted?
+  filter(is.na(vent_duration) | vent_duration >= lubridate::ddays(x = 0))
 
 # examine data distribution and types
 write_csv(constructed, "../data/cleaned_analysis_data.csv",
           na = "NA", append = FALSE)
+
+# save R object
+save(constructed, file="../data/cleaned_analysis_data.Rda")

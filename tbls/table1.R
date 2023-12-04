@@ -33,8 +33,8 @@ units(data$med_cr)  <- "mg/dL" # TODO: is this the right unit?
 tab1 <- data %>%
   table1(
   # TODO: [add when cleaned in clean.R] cr + neph_tox + ph +
-  ~ age + sex + bmi + med_cr + med_ph + diabetes + ckd_yn + ckd_stage + 
-    copd_yn + copd_stage + lactate + vis_score + rrt_yn + cs_etiology + mi_yn + 
+  ~ age + sex + bmi + diabetes + ckd_yn + ckd_stage + copd_yn + copd_stage +
+    lactate + med_ph + vis_score + rrt_yn + med_cr + cs_etiology + mi_yn + 
     ecpr + rx_nephrotox | group, 
   data = .
   )
