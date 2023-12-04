@@ -26,7 +26,8 @@ clean <- data %>%
   # create groupings
   mutate(
     group = case_when(redcap_event_name %in% group_1 ~ "ECLS",
-                      redcap_event_name %in% group_2 ~ "ECMELLA") %>% as.factor()
+                      redcap_event_name %in% group_2 ~ "ECMELLA") %>% as.factor(),
+    death = as.logical(death)
     ) %>%
   
   # PSM features
@@ -262,7 +263,7 @@ lengths_of_stay <- vent_duration %>%
   mutate(hosp_admit_date = as.Date(pat_admit_date, format = "%m/%d/%y"),
          hosp_disch_date = as.Date(discharg_hospital_date, format = "%m/%d/%y")
          ) %>% 
-  select(record_id, hosp_admit_date, hosp_disch_date, death_date) %>%
+  select(record_id, hosp_admit_date, hosp_disch_date, death_date, death) %>%
   fill(hosp_admit_date, hosp_disch_date, death_date, .direction = "downup") %>%
   group_by(record_id) %>%
   # TODO: which to use to calc if there is both a discharge and death?
@@ -271,13 +272,18 @@ lengths_of_stay <- vent_duration %>%
     admit_death_los = death_date - hosp_admit_date,
     hosp_los        = case_when(is.na(hosp_disch_date) ~ admit_death_los,
                                !is.na(hosp_disch_date) ~ admit_disch_los,
-                               .default = NA)
+                               .default = NA),
+    hosp_surv_yn = case_when(!death & !is.na(hosp_disch_date) ~ T,
+                                        death & (hosp_disch_date < death_date) ~ T,
+                                        death & is.na(hosp_disch_date) ~ F,
+                                        .default = NA)
   ) %>%
   filter(row_number()==1)
 
+## patch columns
 vent_duration <- vent_duration %>%
   add_column(hosp_admit_date = NA, hosp_disch_date = NA, hosp_los = NA,
-             admit_disch_los = NA, admit_death_los = NA) %>%
+             admit_disch_los = NA, admit_death_los = NA, hosp_surv_yn = NA) %>%
   mutate(hosp_admit_date = as.Date(hosp_admit_date, format = "%m/%d/%y"),
          hosp_disch_date = as.Date(hosp_disch_date, format = "%m/%d/%y"),
          hosp_los = as.difftime(as.character(hosp_los), units = 'days'),
@@ -286,7 +292,6 @@ vent_duration <- vent_duration %>%
   rows_patch(lengths_of_stay)
 
 
-# hosp_surv_yn = ...
 # icu_los = ...
 
 # create ever received nephrotoxic drugs
@@ -308,18 +313,31 @@ vent_duration <- vent_duration %>%
   add_column(rx_nephrotox = NA, abx_yn = NA) %>%
   rows_patch(nephrotox_rx)
 
-
+# create final output dataframe
 constructed <- vent_duration %>%
-  select(record_id, id, group, age, sex, med_cr, min_cr, max_cr, med_ph, min_ph,
-         max_ph, bmi, lactate, vis_score, diabetes, ckd_yn, ckd_stage, copd_yn, 
-         copd_stage, rrt_yn,rrt_type, rrt_duration, mi_yn, postcard, cpb_fail, 
-         ecpr, cs_etiology, vent_type, vent_duration, extub_reason, extub_date, 
-         intub_date, death, death_date, aki_yn, aki_s1, aki_s2, aki_s3,
-         abx_yn, rx_nephrotox,
-         any_abx, cefuroxim, piptazo, meropenem, vanc_iv, vanc_po, linezolid,
-         dapto, pcn_g, flucoxciln, rifampicin, gentamycin, tobramycin, 
-         ciproflox, other_abx, erythromyc, caspofungn, amph_b_inh, metronid
-         ) %>%
+  select(
+    # id and groups
+    record_id, id, group, death, death_date,
+    # demographics and hx
+    age, sex, bmi, diabetes, ckd_yn, ckd_stage, copd_yn, copd_stage, mi_yn,
+    rx_nephrotox,
+    # hospital stay
+    hosp_admit_date, hosp_disch_date, hosp_los, admit_disch_los, 
+    admit_death_los,
+    # clinical markers
+    med_cr, min_cr, max_cr, med_ph, min_ph, max_ph, lactate, vis_score, 
+    # rrt
+    rrt_yn,rrt_type,rrt_duration,  
+    # icu
+    postcard, cpb_fail, ecpr, cs_etiology, vent_type, vent_duration, 
+    intub_date, extub_date, extub_reason,
+    # aki
+    aki_yn, aki_s1, aki_s2, aki_s3,
+    # antibiotics
+    abx_yn, cefuroxim, piptazo, meropenem, vanc_iv, vanc_po, linezolid, dapto, 
+    pcn_g, flucoxciln, rifampicin, gentamycin, tobramycin, ciproflox,  
+    erythromyc, caspofungn, amph_b_inh, metronid, other_abx
+    ) %>%
   group_by(record_id) %>%
   filter(row_number()==1) %>% # condense to a single row per patient
   filter(!is.na(death))       # only include patient with outcomes
