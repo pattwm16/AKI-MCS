@@ -15,31 +15,34 @@ label(data$ckd_stage) <- "Chronic kidney disease stage"
 label(data$copd_yn) <- "Chronic obstructive pulmonary disease"
 label(data$copd_stage) <- "Chronic obstructive pulmonary disease stage"
 label(data$lactate) <- "Lactate"
-# label(data$ph) <- "pH"
+label(data$med_ph) <- "Median pH"
+label(data$med_cr) <- "Median creatinine"
 label(data$vis_score) <- "Vasoactive-inotropic score (VIS)"
 label(data$rrt_yn) <- "RRT prior to tMCS"
 label(data$mi_yn) <- "Previous cardiac arrest"
 label(data$ecpr) <- "eCPR"
-# label(data$neph_tox) <- "Nephrotoxic drugs"
+label(data$rx_nephrotox) <- "Nephrotoxic drugs"
 label(data$cs_etiology) <- "Cause of cardiogenic shock"
 
 units(data$age)     <- "years"
 units(data$lactate) <- "mg/dL" # TODO: is this the right unit?
+units(data$med_cr)  <- "mg/dL" # TODO: is this the right unit?
 
 
 # create table 1
-tab1 <- table1(
+tab1 <- data %>%
+  table1(
   # TODO: [add when cleaned in clean.R] cr + neph_tox + ph +
-  ~ age + sex + bmi + diabetes + ckd_yn + ckd_stage + copd_yn + copd_stage +
-  lactate + vis_score + rrt_yn + cs_etiology + mi_yn + ecpr |
-    group, 
-  data = data
+  ~ age + sex + bmi + med_cr + med_ph + diabetes + ckd_yn + ckd_stage + 
+    copd_yn + copd_stage + lactate + vis_score + rrt_yn + cs_etiology + mi_yn + 
+    ecpr + rx_nephrotox | group, 
+  data = .
   )
 
 # save tables as .docx and image
 t1flex(tab1) %>% 
-  save_as_docx(path="tbls/table1.docx")
+  save_as_docx(path="../tbls/table1.docx")
 
 t1flex(tab1) %>% 
   bg(bg = "white", part = "all") %>%
-  save_as_image(path="tbls/table1.png")
+  save_as_image(path="../tbls/table1.png")
