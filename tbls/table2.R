@@ -37,7 +37,6 @@ units(constructed$hosp_los) <- "days"
 # create table 2
 tab2 <- constructed %>%
   table1(
-  # TODO: [add when cleaned in clean.R] cr + neph_tox + ph +
   ~ aki_s1 + aki_s2 + aki_s3 + rrt_yn + rrt_duration + vent_duration +
     # icu_los +
     hosp_los + hosp_surv_yn | group, 
