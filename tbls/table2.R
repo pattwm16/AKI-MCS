@@ -3,8 +3,8 @@ library(tidyverse)
 library(flextable)
 library(table1)
 
-load("../data/cleaned_analysis_data.Rda")
-constructed <- read_csv("../data/cleaned_analysis_data.csv") %>%
+#load("../data/cleaned_analysis_data.Rda")
+constructed <- read_csv("../data/cleaned_matched_data.csv") %>%
   mutate(
     aki_s1 = as.logical(aki_s1),
     aki_s2 = as.logical(aki_s2),

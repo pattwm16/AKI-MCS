@@ -34,6 +34,9 @@ matched_subjects %>% cobalt::love.plot(thresholds = c(m = .1),
 matched_data <- match.data(matched_subjects) %>%
   mutate(grp = group)
 
+write_csv(matched_data, "../data/cleaned_matched_data.csv",
+          na = "NA", append = FALSE)
+
 matched_data %>%
   ggplot(aes(x=age, y=lactate, color=group)) +
   geom_point() +

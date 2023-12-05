@@ -21,7 +21,6 @@ other_cs <- c("“{reason_ecls_other}", "Acute Lung Injury",
               "Postpartum Cardiomyopathy", "Toxic Cardiomyopathy", 
               "Valvular Cardiomyopathy", "Myokarditis")
 
-
 clean <- data %>%
   # create groupings
   mutate(
@@ -134,7 +133,7 @@ clean <- data %>%
 
 # duration of RRT
 rrt_duration <- clean %>% 
-  tally((redcap_repeat_instrument == "hemodynamics_ventilation_medication" & rrt_yn) & (!rrt_type %in% c(NA, "No"))) %>%
+  tally((redcap_repeat_instrument == "hemodynamics_ventilation_medication") & (!rrt_type %in% c(NA, "No"))) %>%
   mutate(rrt_duration = as.difftime(n, units = "days")) %>% 
   select(record_id, rrt_duration) 
 
@@ -258,7 +257,6 @@ vent_duration <- vent_duration %>%
          max_ph = as.double(max_ph)) %>%
   rows_patch(ph_cr_median)
 
-# TODO: getting negative ventilation and hospital stay
 # create hosp_los
 lengths_of_stay <- vent_duration %>%
   mutate(hosp_admit_date = as.Date(pat_admit_date, format = "%m/%d/%y"),
@@ -328,7 +326,7 @@ constructed <- vent_duration %>%
     # clinical markers
     med_cr, min_cr, max_cr, med_ph, min_ph, max_ph, lactate, vis_score, 
     # rrt
-    rrt_yn,rrt_type,rrt_duration,  
+    rrt_yn, rrt_type, rrt_duration,  
     # icu
     postcard, cpb_fail, ecpr, cs_etiology, vent_type, vent_duration, 
     intub_date, extub_date, extub_reason,
@@ -340,9 +338,10 @@ constructed <- vent_duration %>%
     erythromyc, caspofungn, amph_b_inh, metronid, other_abx
     ) %>%
   group_by(record_id) %>%
-  filter(row_number()==1) %>% # condense to a single row per patient
+  filter(row_number()==1) %>%    # condense to a single row per patient
   filter(!is.na(death)) %>%      # only include patient with outcomes
-  filter(hosp_los >= lubridate::ddays(0)) %>%  # TODO: 347 and 850 died before admitted?
+  # TODO: 347 and 850 died before admitted?
+  filter(hosp_los >= lubridate::ddays(0)) %>% 
   filter(is.na(vent_duration) | vent_duration >= lubridate::ddays(x = 0))
 
 # examine data distribution and types
