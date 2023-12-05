@@ -4,10 +4,10 @@ library(tidyverse)
 library(readxl)
 
 # load helpers
-source("helpers.R")
+source("scripts/helpers.R")
 
 # get path to raw excel file
-source("dataLoad.R")
+source("scripts/dataLoad.R")
 
 #Group 1: ECLS; Variable: “Baseline (Arm 1: ECLS)” and “ECLS (Arm 1: ECLS)”
 group_1 <- c("baseline_arm_1", "ecls_arm_1")
@@ -68,8 +68,8 @@ clean <- data %>%
     ckd_stage   = as.factor(ckd_spec),
     copd_yn     = as.logical(copd),
     copd_stage  = as.factor(copd_spec),
-    ph          = ph,
-    rrt_type    = renal_repl.factor,
+    ph          = as.numeric(ph),
+    rrt_type    = as.factor(renal_repl.factor),
     cr          = as.numeric(crea),
     mi_yn       = as.logical(pre_cardiac_arrest),
     postcard    = as.logical(pre_postcard),
@@ -231,7 +231,6 @@ vent_duration <- vent_duration %>%
 ph_cr_median <- vent_duration %>%
   filter(redcap_repeat_instrument == "labor") %>%
   group_by(id) %>%
-  mutate(ph = as.numeric(ph)) %>% # TODO: unclear why this is needed?
   mutate(med_cr = median(cr, na.rm = T),
          max_cr = max(cr, na.rm = F),
          min_cr = min(cr, na.rm = F),
@@ -272,10 +271,11 @@ lengths_of_stay <- vent_duration %>%
     hosp_los        = case_when(is.na(hosp_disch_date) ~ admit_death_los,
                                !is.na(hosp_disch_date) ~ admit_disch_los,
                                .default = NA),
-    hosp_surv_yn = case_when(!death & !is.na(hosp_disch_date) ~ T,
+    hosp_surv_yn    = case_when(!death & !is.na(hosp_disch_date) ~ T,
                                         death & (hosp_disch_date < death_date) ~ T,
                                         death & is.na(hosp_disch_date) ~ F,
-                                        .default = NA)
+                                        .default = NA),
+    lost_to_fu      = (is.na(death_date) & is.na(hosp_admit_date))
   ) %>%
   filter(row_number()==1)
 
@@ -322,7 +322,7 @@ constructed <- vent_duration %>%
     rx_nephrotox,
     # hospital stay
     hosp_admit_date, hosp_disch_date, hosp_los, admit_disch_los, 
-    admit_death_los, hosp_surv_yn,
+    admit_death_los, hosp_surv_yn, lost_to_fu,
     # clinical markers
     med_cr, min_cr, max_cr, med_ph, min_ph, max_ph, lactate, vis_score, 
     # rrt

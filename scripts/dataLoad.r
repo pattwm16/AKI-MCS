@@ -8,7 +8,7 @@ library(Hmisc)
 #     did find/replace in excel for commas -> period
 #     output file for that is 'no_comma_raw.csv' from
 #     ECLSDatenbank-LuzieNierenfunktionE_DATA_2023-11-17_1325.csv
-data=read.csv('../data/no_comma_raw.csv')
+data=read.csv('data/no_comma_raw.csv')
 
 #Setting Labels
 
