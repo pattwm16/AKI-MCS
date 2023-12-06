@@ -5,7 +5,7 @@ library(MatchIt)
 library(tidyverse)
 
 # data load
-data <- read_csv("../data/cleaned_analysis_data.csv")
+data <- read_csv("data/cleaned_analysis_data.csv")
 matched_data <- read_csv("data/cleaned_matched_data.csv")
 
 matched_data %>%

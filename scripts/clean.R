@@ -3,6 +3,8 @@ library(janitor)
 library(tidyverse)
 library(readxl)
 
+# flexible values
+
 # load helpers
 source("scripts/helpers.R")
 
@@ -35,7 +37,10 @@ clean <- data %>%
     sex       = sex.factor,
     bmi       = (weight / (height/100)^2), 
     lactate   = pre_lactate,          # TODO: the correct lactate?
-    vis_score = as.numeric(pre_vis)   # TODO: correct vis score?
+    # TODO: correct vis score?
+    vis_score = case_when(
+      as.numeric(pre_vis) > 100 ~ 100,
+      TRUE ~ as.numeric(pre_vis))     
     ) %>%
   
   # antibiotic list
@@ -63,20 +68,23 @@ clean <- data %>%
   
   # table 1
   mutate(
-    diabetes    = as.logical(diabetes),
-    ckd_yn      = as.logical(ckd),
-    ckd_stage   = as.factor(ckd_spec),
-    copd_yn     = as.logical(copd),
-    copd_stage  = as.factor(copd_spec),
-    ph          = as.numeric(ph),
-    rrt_type    = as.factor(renal_repl.factor),
-    cr          = as.numeric(crea),
-    mi_yn       = as.logical(pre_cardiac_arrest),
-    postcard    = as.logical(pre_postcard),
-    cpb_fail    = as.logical(pre_failure_cpb),
-    ecpr        = (reason_ecls.factor == "Cardiopulmonary Reanimation"),
-    aki_yn      = as.logical(aki),
-    nephtox_rx  = (vanc_iv | gentamycin | tobramycin)
+    diabetes      = as.logical(diabetes),
+    ckd_yn        = as.logical(ckd),
+    ckd_stage     = as.factor(ckd_spec),
+    copd_yn       = as.logical(copd),
+    copd_stage    = as.factor(copd_spec),
+    ph            = as.numeric(ph),
+    pre_rrt_yn    = as.logical(pre_renal_repl),
+    pre_rrt_type  = as.factor(pre_renal_repl_spec.factor),
+    #ecls_rrt_yn   = as.logical(...),
+    ecls_rrt_type = as.factor(renal_repl.factor), # during ecls
+    cr            = as.numeric(crea),
+    mi_yn         = as.logical(pre_cardiac_arrest),
+    postcard      = as.logical(pre_postcard),
+    cpb_fail      = as.logical(pre_failure_cpb),
+    ecpr          = (reason_ecls.factor == "Cardiopulmonary Reanimation"),
+    aki_yn        = as.logical(aki),
+    nephtox_rx    = (vanc_iv | gentamycin | tobramycin)
     ) %>%
   
   # causes of cardiogenic shock
@@ -118,23 +126,27 @@ clean <- data %>%
     aki_s1 = as.logical((aki_1_1 == 1) | (aki_1_2 == 1)),
     aki_s2 = as.logical((aki_2 == 2)),
     aki_s3 = as.logical(((aki_3_1 == 3) | (aki_3_2 == 3))),
-    rrt_yn = (rrt_type %in% c("Continuous Hemofiltration", "Hemodialysis"))
     ) %>%
   
   # fill vertically for time-invariant factors
   group_by(record_id) %>%
   fill(id, age, sex, bmi, vis_score, diabetes, death, ckd_yn, ckd_stage, copd_yn, 
        copd_stage, lactate, mi_yn, postcard, cpb_fail, ecpr, cs_etiology,
+       pre_rrt_yn, pre_rrt_type, 
+       # TODO: should these be filled here?
        aki_s1, aki_s2, aki_s3,
-       .direction = "downup")
+       .direction = "downup") %>%
+  ungroup()
 
   # time (vertical) variables
   # TODO: how is best to pivot this?
 
 # duration of RRT
 rrt_duration <- clean %>% 
-  tally((redcap_repeat_instrument == "hemodynamics_ventilation_medication") & (!rrt_type %in% c(NA, "No"))) %>%
-  mutate(rrt_duration = as.difftime(n, units = "days")) %>% 
+  group_by(record_id) %>%
+  tally((redcap_repeat_instrument == "hemodynamics_ventilation_medication") & (!ecls_rrt_type %in% c(NA, "No")),
+        name = 'rrt_duration') %>%
+  mutate(rrt_duration = as.difftime(rrt_duration, units = "days")) %>% 
   select(record_id, rrt_duration) 
 
 ## patch column
@@ -146,11 +158,12 @@ clean <- clean %>%
 # duration of ventilation
 vent_duration <- clean %>% 
   mutate(
+    vent_yn   = as.factor(pre_ventilation),
     vent_type = as.factor(vent.factor),
     extub_reason = as.factor(extub.factor),
     intub_pre_ecls = as.logical(intubation),
-    extub_date = as.Date(extub_date, format = "%m/%d/%y"),
     intub_date = as.Date(ventil_start_date, format = "%m/%d/%y"),
+    extub_date = as.Date(extub_date, format = "%m/%d/%y"),
     death_date = as.Date(death_date, format = "%m/%d/%y")
     ) %>% 
   
@@ -160,12 +173,15 @@ vent_duration <- clean %>%
   
   # group for different approaches to calculate ventilation time
   mutate(
+    # are ecls and date avail?
     tubed_prior_ecls_w_date = (intub_pre_ecls & ventil_date),
     tubed_prior_ecls_wo_date = (intub_pre_ecls & !ventil_date),
     nottubed_prior_ecls_w_date = (!intub_pre_ecls & ventil_date),
     nottubed_prior_ecls_wo_date = (!intub_pre_ecls & !ventil_date),
+    # vent time by available data / ventilation types
     vent_duration = case_when(tubed_prior_ecls_w_date & (extub.factor %in% c("no extubation before death", "intubated at time of death")) ~ death_date - intub_date,
-                              extub.factor == "orotracheally extubated" ~ extub_date - intub_date)
+                              extub.factor == "orotracheally extubated" ~ extub_date - intub_date,
+                              .default = as.difftime(0, units = "days"))
     ) %>%
   fill(tubed_prior_ecls_w_date, tubed_prior_ecls_wo_date,
        nottubed_prior_ecls_w_date, nottubed_prior_ecls_wo_date,
@@ -173,6 +189,7 @@ vent_duration <- clean %>%
 
 # intubated before ECLS with date
 tracheostomy <- vent_duration %>% 
+  group_by(record_id) %>%
   tally((redcap_repeat_instrument == "hemodynamics_ventilation_medication" & tubed_prior_ecls_w_date & (extub_reason == "tracheostomy")) & (vent_type != "Invasive Ventilation")) %>% 
   mutate(vent_duration = as.difftime(n, units = "days")) %>% 
   select(record_id, vent_duration) %>%
@@ -184,6 +201,7 @@ vent_duration <- vent_duration %>%
 
 ## transferred while intubated or with tracheostomy
 trnsf_prior_intub <- vent_duration %>% 
+  group_by(record_id) %>%
   tally(redcap_repeat_instrument == "hemodynamics_ventilation_medication" & tubed_prior_ecls_wo_date & (extub_reason %in% c("transferred with tracheostoma", "transferred intubated")) & (vent_type == "Invasive Ventilation")) %>%
   mutate(vent_duration = as.difftime(n, units = "days")) %>% 
   select(record_id, vent_duration) %>%
@@ -195,6 +213,7 @@ vent_duration <- vent_duration %>%
   
 # intubated before ECLS without date
 tube_prior_wo_date <- vent_duration %>% 
+  group_by(record_id) %>%
   tally((redcap_repeat_instrument == "hemodynamics_ventilation_medication" & tubed_prior_ecls_wo_date) & (vent_type != "Invasive Ventilation")) %>%
   mutate(vent_duration = as.difftime(n, units = "days")) %>% 
   select(record_id, vent_duration) %>%
@@ -207,6 +226,7 @@ vent_duration <- vent_duration %>%
 # intubated after ECLS with date
 # TODO: not sure what "ON MCS" means...
 tube_after_w_date <- vent_duration %>% 
+  group_by(record_id) %>%
   tally((redcap_repeat_instrument == "hemodynamics_ventilation_medication" & nottubed_prior_ecls_w_date) & (vent_type != "Invasive Ventilation")) %>%
   mutate(vent_duration = as.difftime(n, units = "days")) %>% 
   select(record_id, vent_duration) %>%
@@ -218,6 +238,7 @@ vent_duration <- vent_duration %>%
 
 # intubated after ECLS with date
 tube_after_wo_date <- vent_duration %>% 
+  group_by(record_id) %>%
   tally((redcap_repeat_instrument == "hemodynamics_ventilation_medication" & nottubed_prior_ecls_wo_date) & (vent_type != "Invasive Ventilation")) %>%
   mutate(vent_duration = as.difftime(n, units = "days")) %>% 
   select(record_id, vent_duration) %>%
@@ -229,8 +250,8 @@ vent_duration <- vent_duration %>%
 
 # take median/max/min of creatinine and ph
 ph_cr_median <- vent_duration %>%
+  group_by(record_id) %>%
   filter(redcap_repeat_instrument == "labor") %>%
-  group_by(id) %>%
   mutate(med_cr = median(cr, na.rm = T),
          max_cr = max(cr, na.rm = F),
          min_cr = min(cr, na.rm = F),
@@ -274,6 +295,7 @@ lengths_of_stay <- vent_duration %>%
     hosp_surv_yn    = case_when(!death & !is.na(hosp_disch_date) ~ T,
                                         death & (hosp_disch_date < death_date) ~ T,
                                         death & is.na(hosp_disch_date) ~ F,
+                                        death & !is.na(death_date) ~ F,
                                         .default = NA),
     lost_to_fu      = (is.na(death_date) & is.na(hosp_admit_date))
   ) %>%
@@ -282,7 +304,8 @@ lengths_of_stay <- vent_duration %>%
 ## patch columns
 vent_duration <- vent_duration %>%
   add_column(hosp_admit_date = NA, hosp_disch_date = NA, hosp_los = NA,
-             admit_disch_los = NA, admit_death_los = NA, hosp_surv_yn = NA) %>%
+             admit_disch_los = NA, admit_death_los = NA, hosp_surv_yn = NA,
+             lost_to_fu = NA) %>%
   mutate(hosp_admit_date = as.Date(hosp_admit_date, format = "%m/%d/%y"),
          hosp_disch_date = as.Date(hosp_disch_date, format = "%m/%d/%y"),
          hosp_los = as.difftime(as.character(hosp_los), units = 'days'),
@@ -295,6 +318,7 @@ vent_duration <- vent_duration %>%
 
 # create ever received nephrotoxic drugs
 nephrotox_rx <- vent_duration %>%
+  group_by(record_id) %>%
   filter(redcap_repeat_instrument == "hemodynamics_ventilation_medication") %>%
   group_by(id) %>%
   mutate(rx_nephrotox = case_when(is.na(nephtox_rx) ~ NA,
@@ -326,7 +350,9 @@ constructed <- vent_duration %>%
     # clinical markers
     med_cr, min_cr, max_cr, med_ph, min_ph, max_ph, lactate, vis_score, 
     # rrt
-    rrt_yn, rrt_type, rrt_duration,  
+    pre_rrt_yn, pre_rrt_type,
+      #ecls_rrt_yn,
+    ecls_rrt_type, rrt_duration,  
     # icu
     postcard, cpb_fail, ecpr, cs_etiology, vent_type, vent_duration, 
     intub_date, extub_date, extub_reason,
@@ -345,8 +371,8 @@ constructed <- vent_duration %>%
   filter(is.na(vent_duration) | vent_duration >= lubridate::ddays(x = 0))
 
 # examine data distribution and types
-write_csv(constructed, "../data/cleaned_analysis_data.csv",
+write_csv(constructed, "data/cleaned_analysis_data.csv",
           na = "NA", append = FALSE)
 
 # save R object
-save(constructed, file="../data/cleaned_analysis_data.Rda")
+save(constructed, file="data/cleaned_analysis_data.Rda")

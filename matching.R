@@ -1,16 +1,18 @@
 # libraries
 library(MatchIt)
+library(cobalt)
 library(tidyverse)
 
 # data load
-data <- read_csv("data/cleaned_analysis_data.csv")
+data <- read_csv("data/cleaned_analysis_data.csv") %>%
+  mutate(group = as.factor(group)) %>%
+  # TODO: this reduces the number of effective cases for comparison
+  filter(if_all(c(age, sex, bmi, lactate, vis_score), complete.cases))
 
 # propensity score matching
 # age, sex, bmi, lactate, vis
 # 1:1 NN PS matching w/o replacement
 matched_subjects <- data %>%
-  mutate(group = as.factor(group)) %>%
-  filter(if_all(c(age, sex, bmi, lactate, vis_score), complete.cases)) %>%
   matchit(formula = group ~ age + sex + bmi + lactate + vis_score,
           # use covariate balanced propensity score matching
           data = ., method = "nearest", distance = "glm", ratio = 1)
@@ -22,12 +24,17 @@ v <- data.frame(old = c("age", "sex_male", "bmi", "lactate",
                         "Lactate", "VIS"))
 
 # love plot to assess balance
-matched_subjects %>% cobalt::love.plot(thresholds = c(m = .1), 
+(matched_subjects %>% love.plot(thresholds = c(m = .1), 
                                        var.order = "unadjusted", 
                                        var.names = v,
                                        position = "bottom",
                                        abs = TRUE,
-                                       stars = "raw")
+                                       stars = "raw"))
+
+# generate table with balance statistics
+(data %>% bal.tab(group ~ age + sex + bmi + lactate + vis_score, data = .,
+                  thresholds = c(m = .1, v = 2)))
+(matched_subjects %>% bal.tab(thresholds = c(m = .1, v = 2)))
 
 # save plot
 ggsave("figs/love_plot.svg", 
