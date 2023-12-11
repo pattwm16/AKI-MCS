@@ -35,7 +35,7 @@ clean <- data %>%
   mutate(
     age       = coalesce(data$age_ecls_1, data$age_ecls_2),
     sex       = sex.factor,
-    bmi       = (weight / (height/100)^2),
+    bmi       = (weight / (height / 100)^2),
     lactate   = pre_lactate,          # TODO: the correct lactate?
 
     # pre_vis had non-numeric values that threw coercion errors
@@ -82,8 +82,6 @@ clean <- data %>%
     ph            = as.numeric(ph),
     pre_rrt_yn    = as.logical(pre_renal_repl),
     pre_rrt_type  = as.factor(pre_renal_repl_spec.factor),
-    #ecls_rrt_yn   = as.logical(...),
-    ecls_rrt_type = as.factor(renal_repl.factor), # during ecls
     cr            = as.numeric(crea),
     mi_yn         = as.logical(pre_cardiac_arrest),
     postcard      = as.logical(pre_postcard),
@@ -93,12 +91,23 @@ clean <- data %>%
     nephtox_rx    = (vanc_iv | gentamycin | tobramycin)
   ) %>%
 
+  # boolean ecls and rrt variables
+  # boolean ecls and rrt variables
+  mutate(
+    ecls_start_date = as.Date(ecls_start_date, format = "%m/%d/%y"),
+    ecls_stop_date = as.Date(ecls_stop_date, format = "%m/%d/%y"),
+    impella_start_date = as.Date(impella_start_date, format = "%m/%d/%y"),
+    impella_stop_date = as.Date(impella_stop_date, format = "%m/%d/%y"),
+        #ecls_rrt_yn   = as.logical(...),
+    ecls_rrt_type = as.factor(renal_repl.factor), # during ecls
+  ) %>%
+
   # causes of cardiogenic shock
   mutate(
     # AMICS
     cs_amics = case_when(
-    (reason_ecls.factor == "Cardiopulmonary Reanimation" & mi_yn) | reason_ecls.factor == "Acute Myocardial Infarction" ~ T,
-    .default = F),
+    (reason_ecls.factor == "Cardiopulmonary Reanimation" & mi_yn) | reason_ecls.factor == "Acute Myocardial Infarction" ~ TRUE,
+    .default = FALSE),
 
     # AHF-CS
     cs_ahf = case_when(
@@ -142,6 +151,7 @@ clean <- data %>%
       pre_rrt_yn, pre_rrt_type,
       # TODO: should these be filled here?
       aki_s1, aki_s2, aki_s3,
+      ecls_start_date, ecls_stop_date, impella_start_date, impella_stop_date,
       .direction = "downup") %>%
   ungroup()
 
@@ -308,7 +318,7 @@ lengths_of_stay <- vent_duration %>%
                                 .default = NA),
     lost_to_fu      = (is.na(death_date) & is.na(hosp_admit_date))
   ) %>%
-  filter(row_number()==1)
+  filter(row_number() == 1)
 
 ## patch columns
 vent_duration <- vent_duration %>%
@@ -345,6 +355,25 @@ vent_duration <- vent_duration %>%
   add_column(rx_nephrotox = NA, abx_yn = NA) %>%
   rows_patch(., nephrotox_rx)
 
+# MCS durations
+mcs_duration <- vent_duration %>%
+  mutate(
+    ecls_duration = replace_na(ecls_stop_date - ecls_start_date, duration(0, "days")),
+    impella_duration = replace_na(impella_stop_date - impella_start_date, duration(0, "days")),
+  ) %>%
+  select(record_id, ecls_duration, impella_duration, ecls_start_date,
+         ecls_stop_date, impella_start_date, impella_stop_date) %>%
+  group_by(record_id) %>%
+  filter(row_number() == 1)
+
+## patch column
+vent_duration <- vent_duration %>%
+  add_column(ecls_duration = NA, impella_duration = NA) %>%
+  mutate(ecls_duration = as.difftime(as.character(ecls_duration), units = "days"),
+         impella_duration = as.difftime(as.character(impella_duration), units = "days")) %>%
+  rows_patch(., mcs_duration)
+
+
 # create final output dataframe
 constructed <- vent_duration %>%
   select(
@@ -356,6 +385,9 @@ constructed <- vent_duration %>%
     # hospital stay
     hosp_admit_date, hosp_disch_date, hosp_los, admit_disch_los,
     admit_death_los, hosp_surv_yn, lost_to_fu,
+    # mcs
+    ecls_start_date, ecls_stop_date, impella_start_date, impella_stop_date,
+    ecls_duration, impella_duration,
     # clinical markers
     med_cr, min_cr, max_cr, med_ph, min_ph, max_ph, lactate, vis_score,
     # rrt
