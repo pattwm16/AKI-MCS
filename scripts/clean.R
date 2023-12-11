@@ -112,17 +112,17 @@ clean <- data %>%
     # AHF-CS
     cs_ahf = case_when(
       reason_ecls.factor %in% c("Dilatative Cardiomyopathy", "Ischemic Cardiomyopathy") ~ T,
-      .default = F),
+      .default = FALSE),
 
     # PCCS
     cs_pccs = case_when(
       reason_ecls.factor == "Cardiopulmonary Reanimation" & (postcard | cpb_fail) ~ T,
-      .default = F),
+      .default = FALSE),
 
     # OTHER
     cs_other = case_when(
       (reason_ecls.factor == "Cardiopulmonary Reanimation" & !postcard & !cpb_fail & !mi_yn) | reason_ecls.factor %in% other_cs ~ T,
-      .default = F)
+      .default = FALSE)
   ) %>%
 
   # collect etiologies (logical) as single column
@@ -134,7 +134,7 @@ clean <- data %>%
       cs_other ~ "Other",
       .default = NA
     )
-    ) %>%
+  ) %>%
 
   # aki staging
   mutate(
