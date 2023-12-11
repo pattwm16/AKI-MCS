@@ -13,7 +13,7 @@ matched_data %>%
   geom_point() +
   hrbrthemes::theme_ipsum()
 
-fit <- lm(death ~ rrt_duration * (age + sex + bmi + lactate + vis_score), 
+fit <- lm(death ~ rrt_duration * (age + sex + bmi + lactate + vis_score),
           data = matched_data, weights = weights)
 
 plot(fit)
@@ -27,7 +27,7 @@ marginaleffects::avg_comparisons(fit,
 # sec 1
 
 # sec 2
-fit1 <- lm(death ~ aki_yn * (age + sex + bmi + lactate + vis_score), 
+fit1 <- lm(death ~ aki_yn * (age + sex + bmi + lactate + vis_score),
           data = matched_data, weights = weights)
 
 marginaleffects::avg_comparisons(fit1,
