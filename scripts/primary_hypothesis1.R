@@ -57,8 +57,7 @@ proportions <- matched_data %>%
     labs(x = "Etiology of cardiogenic shock",
          y = "",
          fill = "Need for RRT",
-         caption = "RRT was defined as one or more days of either hemodialysis or continuous hemofiltration while undergoing tMCS",
-         subtitle = "Patients with tMCS"
+         caption = "RRT was defined as one or more days of either hemodialysis or continuous hemofiltration while undergoing tMCS"
         ) +
     hrbrthemes::theme_ipsum(grid = "Y"))
 
