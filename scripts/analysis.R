@@ -14,19 +14,23 @@ matched_data <- read_csv("data/cleaned_matched_data.csv")
 # identify patients in CS w/ tMCS
 # treatment is rrt
 # outcome is hosp_surv_yn
-
 matched_data %>%
-group_by()
+  filter(cs_etiology != "No shock") %>%
+  group_by(rrt_yn) %>%
+  tabyl(rrt_yn, hosp_surv_yn)
 
-fit <- lm( ~ rrt_duration * (age + sex + bmi + lactate + vis_score),
+
+
+
+fit <- lm(hosp_surv_yn ~ rrt_yn * (age + sex + bmi + lactate + vis_score),
           data = matched_data, weights = weights)
 
 plot(fit)
 
 marginaleffects::avg_comparisons(fit,
-                variables = "rrt_duration",
+                variables = "rrt_yn",
                 vcov = ~subclass,
-                newdata = subset(matched_data, rrt_duration == 0),
+                newdata = subset(matched_data, rrt_yn == 0),
                 wts = "weights")
 
 # sec 1

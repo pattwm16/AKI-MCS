@@ -111,26 +111,26 @@ clean <- data %>%
 
     # AHF-CS
     cs_ahf = case_when(
-      reason_ecls.factor %in% c("Dilatative Cardiomyopathy", "Ischemic Cardiomyopathy") ~ T,
+      reason_ecls.factor %in% c("Dilatative Cardiomyopathy", "Ischemic Cardiomyopathy") ~ TRUE,
       .default = FALSE),
 
     # PCCS
     cs_pccs = case_when(
-      reason_ecls.factor == "Cardiopulmonary Reanimation" & (postcard | cpb_fail) ~ T,
+      reason_ecls.factor == "Cardiopulmonary Reanimation" & (postcard | cpb_fail) ~ TRUE,
       .default = FALSE),
 
     # OTHER
     cs_other = case_when(
-      (reason_ecls.factor == "Cardiopulmonary Reanimation" & !postcard & !cpb_fail & !mi_yn) | reason_ecls.factor %in% other_cs ~ T,
+      (reason_ecls.factor == "Cardiopulmonary Reanimation" & !postcard & !cpb_fail & !mi_yn) | reason_ecls.factor %in% other_cs ~ TRUE,
       .default = FALSE)
   ) %>%
 
   # collect etiologies (logical) as single column
   mutate(
     cs_etiology = case_when(
+      cs_pccs ~ "PCCS",
       cs_amics ~ "AMICS",
       cs_ahf ~ "AHF",
-      cs_pccs ~ "PCCS",
       cs_other ~ "Other",
       .default = NA
     )
@@ -416,6 +416,7 @@ constructed <- vent_duration %>%
   ) %>%
   group_by(record_id) %>%
   filter(row_number()==1) %>%    # condense to a single row per patient
+  mutate(cs_etiology = replace_na(cs_etiology, "No shock")) %>%
   filter(!is.na(death)) %>%      # only include patient with outcomes
   # TODO: 347 and 850 died before admitted?
   filter(hosp_los >= lubridate::ddays(0)) %>%
