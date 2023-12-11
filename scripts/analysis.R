@@ -8,12 +8,17 @@ library(tidyverse)
 data <- read_csv("data/cleaned_analysis_data.csv")
 matched_data <- read_csv("data/cleaned_matched_data.csv")
 
-matched_data %>%
-  ggplot(aes(x=age, y=lactate, color=group)) +
-  geom_point() +
-  hrbrthemes::theme_ipsum()
+# patients in CS w/ tMCS have lower survival to hospital discharge rate
+# when additionally needing RRT
 
-fit <- lm(death ~ rrt_duration * (age + sex + bmi + lactate + vis_score),
+# identify patients in CS w/ tMCS
+# treatment is rrt
+# outcome is hosp_surv_yn
+
+matched_data %>%
+group_by()
+
+fit <- lm( ~ rrt_duration * (age + sex + bmi + lactate + vis_score),
           data = matched_data, weights = weights)
 
 plot(fit)

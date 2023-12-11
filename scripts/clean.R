@@ -167,9 +167,19 @@ rrt_duration <- clean %>%
 ## patch column
 clean <- clean %>%
   add_column(rrt_duration = NA) %>%
-  mutate(rrt_duration = as.difftime(as.character(rrt_duration),
-    units = "days")) %>%
+  mutate(rrt_duration = as.difftime(as.character(rrt_duration), units = "days")) %>%
   rows_patch(., rrt_duration)
+
+# rrt during ecls
+rrt_yn <- clean %>%
+  group_by(record_id) %>%
+  summarise(rrt_yn = any(!is.na(ecls_rrt_type) & ecls_rrt_type != 0)) %>%
+  select(record_id, rrt_yn)
+
+## patch column
+clean <- clean %>%
+  add_column(rrt_yn = NA) %>%
+  rows_patch(., rrt_yn)
 
 # duration of ventilation
 vent_duration <- clean %>%
@@ -184,7 +194,7 @@ vent_duration <- clean %>%
   ) %>%
 
   # fill in vent type and edge dates for all rows of record_id
-  fill(extub_date, intub_date, extub_reason, intub_pre_ecls,
+  fill(extub_date, intub_date, extub_reason, intub_pre_ecls, rrt_yn,
        .direction = "downup") %>%
 
   # group for different approaches to calculate ventilation time
@@ -393,7 +403,7 @@ constructed <- vent_duration %>%
     # rrt
     pre_rrt_yn, pre_rrt_type,
       #ecls_rrt_yn,
-    ecls_rrt_type, rrt_duration,
+    ecls_rrt_type, rrt_yn, rrt_duration,
     # icu
     postcard, cpb_fail, ecpr, cs_etiology, vent_type, vent_duration,
     intub_date, extub_date, extub_reason,
