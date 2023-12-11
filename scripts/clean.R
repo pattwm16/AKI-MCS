@@ -26,8 +26,8 @@ other_cs <- c("“{reason_ecls_other}", "Acute Lung Injury",
 clean <- data %>%
   # create groupings
   mutate(
-    group = case_when(redcap_event_name %in% group_1 ~ "ECLS",
-                      redcap_event_name %in% group_2 ~ "ECMELLA") %>% as.factor(),
+    group = as.factor(case_when(redcap_event_name %in% group_1 ~ "ECLS",
+                                redcap_event_name %in% group_2 ~ "ECMELLA")),
     death = as.logical(death)
   ) %>%
 
@@ -45,8 +45,8 @@ clean <- data %>%
     pre_vis   = ifelse(grepl("^\\d+$", pre_vis), pre_vis, NA),
     pre_vis   = as.numeric(pre_vis), # convert to numeric
     vis_score = case_when(
-      as.numeric(pre_vis) > 100 ~ 100,
-      TRUE ~ as.numeric(pre_vis))
+                          as.numeric(pre_vis) > 100 ~ 100,
+                          TRUE ~ as.numeric(pre_vis))
   ) %>%
 
   # antibiotic list
@@ -98,7 +98,6 @@ clean <- data %>%
     ecls_stop_date = as.Date(ecls_stop_date, format = "%m/%d/%y"),
     impella_start_date = as.Date(impella_start_date, format = "%m/%d/%y"),
     impella_stop_date = as.Date(impella_stop_date, format = "%m/%d/%y"),
-        #ecls_rrt_yn   = as.logical(...),
     ecls_rrt_type = as.factor(renal_repl.factor), # during ecls
   ) %>%
 
@@ -132,7 +131,7 @@ clean <- data %>%
       cs_amics ~ "AMICS",
       cs_ahf ~ "AHF",
       cs_other ~ "Other",
-      .default = NA
+      .default = NA_character_
     )
   ) %>%
 
@@ -146,13 +145,13 @@ clean <- data %>%
   # fill vertically for time-invariant factors
   group_by(record_id) %>%
   fill(id, age, sex, bmi, vis_score, diabetes, death, ckd_yn, ckd_stage,
-      copd_yn,
-      copd_stage, lactate, mi_yn, postcard, cpb_fail, ecpr, cs_etiology,
-      pre_rrt_yn, pre_rrt_type,
-      # TODO: should these be filled here?
-      aki_s1, aki_s2, aki_s3,
-      ecls_start_date, ecls_stop_date, impella_start_date, impella_stop_date,
-      .direction = "downup") %>%
+       copd_yn,
+       copd_stage, lactate, mi_yn, postcard, cpb_fail, ecpr, cs_etiology,
+       pre_rrt_yn, pre_rrt_type,
+       # TODO: should these be filled here?
+       aki_s1, aki_s2, aki_s3,
+       ecls_start_date, ecls_stop_date, impella_start_date, impella_stop_date,
+       .direction = "downup") %>%
   ungroup()
 
 # time (vertical) variables
@@ -184,13 +183,13 @@ clean <- clean %>%
 # duration of ventilation
 vent_duration <- clean %>%
   mutate(
-    vent_yn   = as.factor(pre_ventilation),
-    vent_type = as.factor(vent.factor),
-    extub_reason = as.factor(extub.factor),
+    vent_yn        = as.factor(pre_ventilation),
+    vent_type      = as.factor(vent.factor),
+    extub_reason   = as.factor(extub.factor),
     intub_pre_ecls = as.logical(intubation),
-    intub_date = as.Date(ventil_start_date, format = "%m/%d/%y"),
-    extub_date = as.Date(extub_date, format = "%m/%d/%y"),
-    death_date = as.Date(death_date, format = "%m/%d/%y")
+    intub_date     = as.Date(ventil_start_date, format = "%m/%d/%y"),
+    extub_date     = as.Date(extub_date, format = "%m/%d/%y"),
+    death_date     = as.Date(death_date, format = "%m/%d/%y")
   ) %>%
 
   # fill in vent type and edge dates for all rows of record_id
@@ -206,10 +205,11 @@ vent_duration <- clean %>%
     nottubed_prior_ecls_wo_date = (!intub_pre_ecls & !ventil_date),
 
     # vent time by available data / ventilation types
-    vent_duration = case_when(tubed_prior_ecls_w_date & (extub.factor %in% c("no extubation before death", "intubated at time of death")) ~ death_date - intub_date,
-                              extub.factor == "orotracheally extubated" ~ extub_date - intub_date,
-                              .default = as.difftime(0, units = "days"))
-    ) %>%
+    vent_duration = case_when(
+      tubed_prior_ecls_w_date & (extub.factor %in% c("no extubation before death", "intubated at time of death")) ~ death_date - intub_date,
+      extub.factor == "orotracheally extubated" ~ extub_date - intub_date,
+      .default = as.difftime(0, units = "days"))
+  ) %>%
   fill(tubed_prior_ecls_w_date, tubed_prior_ecls_wo_date,
        nottubed_prior_ecls_w_date, nottubed_prior_ecls_wo_date,
        .direction = "downup")
@@ -343,18 +343,19 @@ vent_duration <- vent_duration %>%
   rows_patch(., lengths_of_stay)
 
 
-# icu_los = ...
+# TODO: icu_los = ...
 
 # create ever received nephrotoxic drugs
 nephrotox_rx <- vent_duration %>%
   group_by(record_id) %>%
   filter(redcap_repeat_instrument == "hemodynamics_ventilation_medication") %>%
   group_by(id) %>%
-  mutate(rx_nephrotox = case_when(is.na(nephtox_rx) ~ NA,
+  mutate(
+    rx_nephrotox = case_when(is.na(nephtox_rx) ~ NA,
                                   any(nephtox_rx == TRUE) ~ TRUE,
                                   .default = FALSE),
-         abx_yn       = any(any_abx == TRUE)
-         ) %>%
+    abx_yn       = any(any_abx == TRUE)
+  ) %>%
   ungroup() %>%
   select(record_id, rx_nephrotox, any_abx) %>%
   group_by(record_id) %>%
@@ -402,8 +403,8 @@ constructed <- vent_duration %>%
     med_cr, min_cr, max_cr, med_ph, min_ph, max_ph, lactate, vis_score,
     # rrt
     pre_rrt_yn, pre_rrt_type,
-      #ecls_rrt_yn,
     ecls_rrt_type, rrt_yn, rrt_duration,
+    # rrt_yn is during ecls
     # icu
     postcard, cpb_fail, ecpr, cs_etiology, vent_type, vent_duration,
     intub_date, extub_date, extub_reason,
