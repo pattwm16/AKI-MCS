@@ -30,11 +30,11 @@ v <- data.frame(old = c("age", "sex_male", "bmi", "lactate",
 
 # love plot to assess balance
 (matched_subjects %>% love.plot(thresholds = c(m = .1),
-                                       var.order = "unadjusted",
-                                       var.names = v,
-                                       position = "bottom",
-                                       abs = TRUE,
-                                       stars = "raw"))
+                                var.order = "unadjusted",
+                                var.names = v,
+                                position = "bottom",
+                                abs = TRUE,
+                                stars = "raw"))
 
 # generate table with balance statistics
 (data %>% bal.tab(group ~ age + sex + bmi + log(lactate) + vis_score, data = .,
