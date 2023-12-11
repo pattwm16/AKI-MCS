@@ -50,7 +50,7 @@ matched_data %>%
 
 # fit logistic regression model
 matched_data %>%
-  glm(hosp_surv_yn ~ aki_yn + group, family = binomial, weights = weights, data = .) %>%
+  glm(hosp_surv_yn ~ aki_yn * group, family = binomial, weights = weights, data = .) %>%
   tbl_regression(., exponentiate = TRUE) %>%
   as_gt() %>%
   gt::gtsave(filename = "tbls/regs/secondary_hypothesis_2.docx")

@@ -173,7 +173,7 @@ clean <- clean %>%
 # rrt during ecls
 rrt_yn <- clean %>%
   group_by(record_id) %>%
-  summarise(rrt_yn = any(!is.na(ecls_rrt_type) & ecls_rrt_type != 0)) %>%
+  summarise(rrt_yn = any(!is.na(ecls_rrt_type) & ecls_rrt_type != "No")) %>%
   select(record_id, rrt_yn)
 
 ## patch column
