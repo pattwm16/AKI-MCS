@@ -11,7 +11,6 @@ library(Hmisc)
 data=read.csv('data/no_comma_raw.csv')
 
 #Setting Labels
-
 label(data$record_id)="Record ID"
 label(data$redcap_event_name)="Event Name"
 label(data$redcap_repeat_instrument)="Repeat Instrument"

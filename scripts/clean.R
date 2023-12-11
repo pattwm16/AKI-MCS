@@ -38,6 +38,10 @@ clean <- data %>%
     bmi       = (weight / (height/100)^2), 
     lactate   = pre_lactate,          # TODO: the correct lactate?
     # TODO: correct vis score?
+    pre_vis   = as.character(pre_vis), # convert to character
+    pre_vis   = na_if(pre_vis, ""),    # replace empty strings with NA
+    pre_vis   = ifelse(grepl("^\\d+$", pre_vis), pre_vis, NA), # replace non-numeric values with NA
+    pre_vis   = as.numeric(pre_vis), # convert to numeric
     vis_score = case_when(
       as.numeric(pre_vis) > 100 ~ 100,
       TRUE ~ as.numeric(pre_vis))     
@@ -93,7 +97,7 @@ clean <- data %>%
     cs_amics = case_when(
     (reason_ecls.factor == "Cardiopulmonary Reanimation" & mi_yn) | reason_ecls.factor == "Acute Myocardial Infarction" ~ T,
     .default = F),
-    
+
     # AHF-CS
     cs_ahf = case_when(
       reason_ecls.factor %in% c("Dilatative Cardiomyopathy", "Ischemic Cardiomyopathy") ~ T,
@@ -153,7 +157,7 @@ rrt_duration <- clean %>%
 clean <- clean %>% 
   add_column(rrt_duration = NA) %>%
   mutate(rrt_duration = as.difftime(as.character(rrt_duration), units = "days")) %>%
-  rows_patch(rrt_duration)
+  rows_patch(., rrt_duration)
 
 # duration of ventilation
 vent_duration <- clean %>% 
@@ -197,7 +201,7 @@ tracheostomy <- vent_duration %>%
 
 ## patch column
 vent_duration <- vent_duration %>% 
-  rows_patch(tracheostomy)
+  rows_patch(., tracheostomy)
 
 ## transferred while intubated or with tracheostomy
 trnsf_prior_intub <- vent_duration %>% 
@@ -209,7 +213,7 @@ trnsf_prior_intub <- vent_duration %>%
 
 ## patch column
 vent_duration <- vent_duration %>% 
-  rows_patch(trnsf_prior_intub)
+  rows_patch(., trnsf_prior_intub)
   
 # intubated before ECLS without date
 tube_prior_wo_date <- vent_duration %>% 
@@ -221,7 +225,7 @@ tube_prior_wo_date <- vent_duration %>%
 
 ## patch column
 vent_duration <- vent_duration %>% 
-  rows_patch(tube_prior_wo_date)
+  rows_patch(., tube_prior_wo_date)
 
 # intubated after ECLS with date
 # TODO: not sure what "ON MCS" means...
@@ -234,7 +238,7 @@ tube_after_w_date <- vent_duration %>%
 
 ## patch column
 vent_duration <- vent_duration %>% 
-  rows_patch(tube_after_w_date)
+  rows_patch(., tube_after_w_date)
 
 # intubated after ECLS with date
 tube_after_wo_date <- vent_duration %>% 
@@ -246,7 +250,7 @@ tube_after_wo_date <- vent_duration %>%
 
 ## patch column
 vent_duration <- vent_duration %>% 
-  rows_patch(tube_after_wo_date)
+  rows_patch(., tube_after_wo_date)
 
 # take median/max/min of creatinine and ph
 ph_cr_median <- vent_duration %>%
@@ -275,7 +279,7 @@ vent_duration <- vent_duration %>%
          min_ph = as.double(min_ph),
          max_cr = as.double(max_cr),
          max_ph = as.double(max_ph)) %>%
-  rows_patch(ph_cr_median)
+  rows_patch(., ph_cr_median)
 
 # create hosp_los
 lengths_of_stay <- vent_duration %>%
@@ -311,7 +315,7 @@ vent_duration <- vent_duration %>%
          hosp_los = as.difftime(as.character(hosp_los), units = 'days'),
          admit_disch_los = as.difftime(as.character(admit_disch_los), units = 'days'),
          admit_death_los = as.difftime(as.character(admit_death_los), units = "days")) %>%
-  rows_patch(lengths_of_stay)
+  rows_patch(., lengths_of_stay)
 
 
 # icu_los = ...
@@ -334,7 +338,7 @@ nephrotox_rx <- vent_duration %>%
 ## patch column
 vent_duration <- vent_duration %>% 
   add_column(rx_nephrotox = NA, abx_yn = NA) %>%
-  rows_patch(nephrotox_rx)
+  rows_patch(., nephrotox_rx)
 
 # create final output dataframe
 constructed <- vent_duration %>%
