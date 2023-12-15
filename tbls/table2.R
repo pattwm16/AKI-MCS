@@ -4,17 +4,7 @@ library(flextable)
 library(table1)
 
 #load("../data/cleaned_analysis_data.Rda")
-data <- read_csv("data/cleaned_matched_data.csv") %>%
-  mutate(
-    aki_s1 = as.logical(aki_s1),
-    aki_s2 = as.logical(aki_s2),
-    aki_s3 = as.logical(aki_s3)
-  ) %>%
-  mutate(
-    aki_s1 = replace_na(aki_s1, FALSE),
-    aki_s2 = replace_na(aki_s2, FALSE),
-    aki_s3 = replace_na(aki_s3, FALSE)
-  )
+data <- read_csv("data/cleaned_matched_data.csv")
 
 # parse label
 label(data$aki_s1)          <- "AKI - Stadium 1"

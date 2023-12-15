@@ -23,6 +23,9 @@ other_cs <- c("“{reason_ecls_other}", "Acute Lung Injury",
               "Postpartum Cardiomyopathy", "Toxic Cardiomyopathy",
               "Valvular Cardiomyopathy", "Myokarditis")
 
+data <- data %>% group_by(record_id) %>%
+  fill(aki, .direction = "down")
+
 clean <- data %>%
   # create groupings
   mutate(
@@ -33,7 +36,7 @@ clean <- data %>%
 
   # PSM features
   mutate(
-    age       = coalesce(data$age_ecls_1, data$age_ecls_2),
+    age       = coalesce(age_ecls_1, age_ecls_2),
     sex       = sex.factor,
     bmi       = (weight / (height / 100)^2),
     lactate   = pre_lactate,          # TODO: the correct lactate?
@@ -144,14 +147,27 @@ clean <- data %>%
 
   # fill vertically for time-invariant factors
   group_by(record_id) %>%
-  fill(id, age, sex, bmi, vis_score, diabetes, death, ckd_yn, ckd_stage,
+  fill(id, age, sex, bmi, vis_score, diabetes, death, ckd_yn,     ckd_stage,
        copd_yn,
        copd_stage, lactate, mi_yn, postcard, cpb_fail, ecpr, cs_etiology,
        pre_rrt_yn, pre_rrt_type,
        # TODO: should these be filled here?
-       aki_s1, aki_s2, aki_s3,
+       aki_yn, aki_s1, aki_s2, aki_s3,
        ecls_start_date, ecls_stop_date, impella_start_date, impella_stop_date,
        .direction = "downup") %>%
+  # fill NAs with FALSE
+  mutate(
+    aki_s1 = replace_na(aki_s1, FALSE),
+    aki_s2 = replace_na(aki_s2, FALSE),
+    aki_s3 = replace_na(aki_s3, FALSE),
+    aki_yn = replace_na(aki_yn, FALSE),
+    aki_max = case_when(
+      aki_s3 ~ "s3",
+      aki_s2 ~ "s2",
+      aki_s1 ~ "s1",
+      TRUE ~ "no aki"
+    )
+  ) %>%
   ungroup()
 
 # time (vertical) variables
@@ -409,7 +425,7 @@ constructed <- vent_duration %>%
     postcard, cpb_fail, ecpr, cs_etiology, vent_type, vent_duration,
     intub_date, extub_date, extub_reason,
     # aki
-    aki_yn, aki_s1, aki_s2, aki_s3,
+    aki_yn, aki_max, aki_s1, aki_s2, aki_s3,
     # antibiotics
     abx_yn, cefuroxim, piptazo, meropenem, vanc_iv, vanc_po, linezolid, dapto,
     pcn_g, flucoxciln, rifampicin, gentamycin, tobramycin, ciproflox,
