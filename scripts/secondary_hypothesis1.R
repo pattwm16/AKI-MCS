@@ -8,27 +8,41 @@ library(tidyverse)
 
 # data load
 data <- read_csv("data/cleaned_analysis_data.csv")
-matched_data <- read_csv("data/cleaned_matched_data.csv")
+matched_data <- read_csv("data/cleaned_matched_data.csv") %>%
+  mutate(aki_max = case_when(
+    aki_max %in% c("no aki", "s1") ~ "No aki / S1",
+    aki_max == "s2" ~ "S2",
+    aki_max == "s3" ~ "S3",
+    TRUE ~ aki_max
+  )) %>%
+  mutate(aki_max = forcats::fct_relevel(aki_max,
+                                        "No aki / S1",
+                                        "S2",
+                                        "S3"))
 
+# label matched_data
+labelled::var_label(matched_data) <- list(
+  group = 'tCMS group',
+  aki_max = 'Maximal AKI stadium'
+)
 
 # secondary hypothesis 1 ---
 # survival to hospital discharge in patients treated with tMCS or CS suffering
 # from AKI correlates inversely with the severity of AKI-stadium
 
+# what is the distribution of the aki_max variable?
+matched_data %>%
+  group_by(aki_max) %>%
+  tabyl(aki_max)
 # fit logistic regression model
 model <- matched_data %>%
-  mutate(aki_max = forcats::fct_relevel(aki_max,
-                               "no aki",
-                               "s1",
-                               "s2",
-                               "s3")) %>%
-  mutate(aki_max = as.factor(ifelse(aki_max %in% c("no aki", "s1"),
-  "no aki/s1",
-  aki_max))) %>%
-  MASS::polr(aki_max ~ group,
-             data = ., Hess = TRUE)
+  glm(hosp_surv_yn ~ group * aki_max,
+      data = .)
 
-plot(effects::predictorEffect(model, pred = "group", xlevels = list(group = c("ECMELLA", "va-ECLS"))))
+png("figs/marginal_effects_plot.png", width = 40, height = 30, units = "cm", res = 300)
+plot(effects::predictorEffects(model,
+xlevels = list(group = c("ECMELLA", "va-ECLS"))))
+dev.off()
 
 model %>%
   tbl_regression(., exponentiate = TRUE) %>%

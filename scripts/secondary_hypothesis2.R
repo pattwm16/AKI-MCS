@@ -9,6 +9,12 @@ library(tidyverse)
 data <- read_csv("data/cleaned_analysis_data.csv")
 matched_data <- read_csv("data/cleaned_matched_data.csv")
 
+# label matched_data
+labelled::var_label(matched_data) <- list(
+  group = 'tCMS group',
+  aki_yn = 'AKI on tCMS'
+)
+
 # secondary hypothesis 2 ---
 # survival to hospital discharge in ECMELLA patients with AKI is superior to
 # va-ECLS patients with AKI (dichotomous)

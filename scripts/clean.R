@@ -12,18 +12,20 @@ source("scripts/helpers.R")
 source("scripts/dataLoad.R")
 
 #Group 1: ECLS; Variable: “Baseline (Arm 1: ECLS)” and “ECLS (Arm 1: ECLS)”
+#Group 2: ECMELLA, Variable: “Baseline (Arm 2: ECLS + Impella)” and
+#         “ECLS  (Arm 2: ECLS + Impella)” or “Impella (Arm 2: ECLS + Impella)”
 group_1 <- c("baseline_arm_1", "ecls_arm_1")
 group_2 <- c("baseline_arm_2", "ecls_arm_2", "impella_arm_2")
 
-#Group 2: ECMELLA, Variable: “Baseline (Arm 2: ECLS + Impella)” and
-#         “ECLS  (Arm 2: ECLS + Impella)” or “Impella (Arm 2: ECLS + Impella)”
-
+# cs etiologies for later selection
 other_cs <- c("“{reason_ecls_other}", "Acute Lung Injury",
               "Ventricular Septal Defect", "Pulmonary Embolism",
               "Postpartum Cardiomyopathy", "Toxic Cardiomyopathy",
               "Valvular Cardiomyopathy", "Myokarditis")
 
-data <- data %>% group_by(record_id) %>%
+# fill down aki values
+data <- data %>%
+  group_by(record_id) %>%
   fill(aki, .direction = "down")
 
 clean <- data %>%
@@ -44,7 +46,8 @@ clean <- data %>%
     # pre_vis had non-numeric values that threw coercion errors
     pre_vis   = as.character(pre_vis), # convert to character
     pre_vis   = na_if(pre_vis, ""),    # replace empty strings with NA
-    ## replace non-numeric values with NA
+
+    # replace non-numeric values with NA
     pre_vis   = ifelse(grepl("^\\d+$", pre_vis), pre_vis, NA),
     pre_vis   = as.numeric(pre_vis), # convert to numeric
     vis_score = case_when(
@@ -432,7 +435,7 @@ constructed <- vent_duration %>%
     erythromyc, caspofungn, amph_b_inh, metronid, other_abx
   ) %>%
   group_by(record_id) %>%
-  filter(row_number()==1) %>%    # condense to a single row per patient
+  filter(row_number() == 1) %>%    # condense to a single row per patient
   mutate(cs_etiology = replace_na(cs_etiology, "No shock")) %>%
   filter(!is.na(death)) %>%      # only include patient with outcomes
   # TODO: 347 and 850 died before admitted?
