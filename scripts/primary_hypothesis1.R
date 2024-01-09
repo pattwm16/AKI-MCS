@@ -7,35 +7,38 @@ library(tidyverse)
 
 # data load
 data <- read_csv("data/cleaned_analysis_data.csv")
-matched_data <- read_csv("data/cleaned_matched_data.csv")
+matched_data <- read_csv("data/cleaned_matched_data.csv") %>%
+  mutate(cs_yn = case_when(cs_etiology != "No shock" ~ "No", TRUE ~ "Yes"))
+weighted_data <- read_csv("data/cleaned_weighted_data.csv")
 
 # primary hypothesis ---
 # patients in CS w/ tMCS have lower survival to hospital discharge rate
 # when additionally needing RRT
 
-# identify patients in CS w/ tMCS
-# treatment is rrt
-# outcome is hosp_surv_yn
-matched_data <- matched_data %>%
-  filter(cs_etiology != "No shock")
-
 # count need for RRT by survival to discharge
 matched_data %>%
   group_by(rrt_yn) %>%
-  tabyl(rrt_yn, hosp_surv_yn) %>%
+  tabyl(rrt_yn, hosp_surv_yn, cs_yn) %>%
   adorn_totals(c("col", "row")) %>%
   adorn_title()
 
+# label matched_data
+labelled::var_label(matched_data) <- list(
+  group = 'tCMS group',
+  cs_yn = 'Cardiogenic shock',
+  rrt_yn = 'Need for RRT'
+)
+
 # Fit the logistic regression model
-model <- matched_data %>%
-  glm(hosp_surv_yn ~ rrt_yn, family = binomial, weights = weights, data = .)
+model <- glm(hosp_surv_yn ~ cs_yn * rrt_yn, family = binomial,
+             data = matched_data)
 
 ## save as .docx
 model %>%
   tbl_regression(., exponentiate = TRUE) %>%
+  add_nevent() %>%
   as_gt() %>%
   gt::gtsave(filename = "tbls/regs/primary_hypothesis.docx")
-
 
 # Calculate the proportions
 proportions <- matched_data %>%
@@ -43,7 +46,7 @@ proportions <- matched_data %>%
   summarise(n = n(), .groups = "drop") %>%
   mutate(prop = n / sum(n)) %>%
   mutate(hosp_surv_yn = recode(as.character(hosp_surv_yn), "TRUE" = "Survived to discharge", "FALSE" = "Died prior to discharge")) %>%
-  #mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "No shock")) %>%
+  mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "No shock")) %>%
   mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "Other", , after = length(levels(cs_etiology)))) %>%
   mutate(hosp_surv_yn = forcats::fct_rev(hosp_surv_yn))
 

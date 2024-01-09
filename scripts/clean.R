@@ -18,7 +18,7 @@ group_1 <- c("baseline_arm_1", "ecls_arm_1")
 group_2 <- c("baseline_arm_2", "ecls_arm_2", "impella_arm_2")
 
 # cs etiologies for later selection
-other_cs <- c("“{reason_ecls_other}", "Acute Lung Injury",
+other_cs <- c("{reason_ecls_other}", "Acute Lung Injury",
               "Ventricular Septal Defect", "Pulmonary Embolism",
               "Postpartum Cardiomyopathy", "Toxic Cardiomyopathy",
               "Valvular Cardiomyopathy", "Myokarditis")
@@ -44,6 +44,8 @@ clean <- data %>%
     lactate   = pre_lactate,          # TODO: the correct lactate?
 
     # pre_vis had non-numeric values that threw coercion errors
+    #TODO: check if this is correct 1/9
+    #Bug occurs with comma separated decimal points, figure out how to cast to decimal.
     pre_vis   = as.character(pre_vis), # convert to character
     pre_vis   = na_if(pre_vis, ""),    # replace empty strings with NA
 
@@ -108,6 +110,7 @@ clean <- data %>%
   ) %>%
 
   # causes of cardiogenic shock
+  # TODO: 53 patients are still listed as no shock, what etiology do they have?
   mutate(
     # AMICS
     cs_amics = case_when(
@@ -122,6 +125,8 @@ clean <- data %>%
     # PCCS
     cs_pccs = case_when(
       reason_ecls.factor == "Cardiopulmonary Reanimation" & (postcard | cpb_fail) ~ TRUE,
+      reason_ecls.factor == "Postcardiotomy Syndrom" ~ TRUE,
+      reason_ecls.factor == "{reason_ecls_other}" & cpb_fail ~ TRUE,
       .default = FALSE),
 
     # OTHER
@@ -150,7 +155,7 @@ clean <- data %>%
 
   # fill vertically for time-invariant factors
   group_by(record_id) %>%
-  fill(id, age, sex, bmi, vis_score, diabetes, death, ckd_yn,     ckd_stage,
+  fill(id, age, sex, bmi, vis_score, diabetes, death, ckd_yn, ckd_stage,
        copd_yn,
        copd_stage, lactate, mi_yn, postcard, cpb_fail, ecpr, cs_etiology,
        pre_rrt_yn, pre_rrt_type,
@@ -180,6 +185,7 @@ rrt_duration <- clean %>%
   tally((redcap_repeat_instrument == "hemodynamics_ventilation_medication") & (!ecls_rrt_type %in% c(NA, "No")),
         name = 'rrt_duration') %>%
   mutate(rrt_duration = as.difftime(rrt_duration, units = "days")) %>%
+  # TODO: get rid of all 0 values and return as NA
   select(record_id, rrt_duration)
 
 ## patch column
@@ -335,11 +341,11 @@ lengths_of_stay <- vent_duration %>%
   group_by(record_id) %>%
   # TODO: which to use to calc if there is both a discharge and death?
   mutate(
-    admit_disch_los = hosp_disch_date - hosp_admit_date,
-    admit_death_los = death_date - hosp_admit_date,
-    hosp_los        = case_when(is.na(hosp_disch_date) ~ admit_death_los,
-                               !is.na(hosp_disch_date) ~ admit_disch_los,
-                               .default = NA),
+    admit_disch_los = pmax(hosp_disch_date, hosp_admit_date, na.rm = TRUE) - pmin(hosp_disch_date, hosp_admit_date, na.rm = TRUE),
+    admit_death_los = pmax(death_date, hosp_admit_date, na.rm = TRUE) - pmin(death_date, hosp_admit_date, na.rm = TRUE),
+    hosp_los        = case_when(hosp_disch_date > death_date ~ admit_death_los,
+                                hosp_disch_date <= death_date ~ admit_disch_los,
+                                .default = NA),
     hosp_surv_yn    = case_when(!death & !is.na(hosp_disch_date) ~ TRUE,
                                 death & (hosp_disch_date < death_date) ~ TRUE,
                                 death & is.na(hosp_disch_date) ~ FALSE,
@@ -363,6 +369,9 @@ vent_duration <- vent_duration %>%
 
 
 # TODO: icu_los = ...
+
+#icu_los <- vent_duration %>%
+
 
 # create ever received nephrotoxic drugs
 nephrotox_rx <- vent_duration %>%

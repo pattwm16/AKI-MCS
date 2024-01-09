@@ -10,15 +10,12 @@ library(tidyverse)
 data <- read_csv("data/cleaned_analysis_data.csv")
 matched_data <- read_csv("data/cleaned_matched_data.csv") %>%
   mutate(aki_max = case_when(
-    aki_max %in% c("no aki", "s1") ~ "No aki / S1",
+    aki_max == "no aki" ~ "No aki",
+    aki_max == "s1" ~ "S1",
     aki_max == "s2" ~ "S2",
     aki_max == "s3" ~ "S3",
     TRUE ~ aki_max
-  )) %>%
-  mutate(aki_max = forcats::fct_relevel(aki_max,
-                                        "No aki / S1",
-                                        "S2",
-                                        "S3"))
+  ))
 
 # label matched_data
 labelled::var_label(matched_data) <- list(
@@ -40,8 +37,7 @@ model <- matched_data %>%
       data = .)
 
 png("figs/marginal_effects_plot.png", width = 40, height = 30, units = "cm", res = 300)
-plot(effects::predictorEffects(model,
-xlevels = list(group = c("ECMELLA", "va-ECLS"))))
+plot(effects::predictorEffects(model))
 dev.off()
 
 model %>%
