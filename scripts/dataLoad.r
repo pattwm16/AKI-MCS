@@ -641,7 +641,7 @@ data$cvvhdf.factor = factor(data$cvvhdf,levels=c("1","0"))
 
 levels(data$redcap_event_name.factor)=c("Baseline (Arm 1: ECLS)","ECLS (Arm 1: ECLS)","Baseline (Arm 2: ECLS + Impella)","ECLS  (Arm 2: ECLS + Impella)","Impella (Arm 2: ECLS + Impella)","Baseline (Arm 3: Impella)","Impella (Arm 3: Impella)","Baseline (Arm 4: OxyRVAD/vvECMO)","ECLS (Arm 4: OxyRVAD/vvECMO)")
 levels(data$redcap_repeat_instrument.factor)=c("Surgery","Coronary Angiography","Echocardiography","Infections","Additional MCS","ECLS-Mode","ECLS-Equipment","Pump","Hemodynamics, Ventilation, Medication","Labor","Complications","Mode and Equipment Impella","Impella-Assessment and Complications","Impella - Follow up")
-levels(data$sex.factor)=c("female","male")
+levels(data$sex.factor)=c("Female","Male")
 levels(data$history_arrhythmia.factor)=c("Ja","Nein")
 levels(data$history_arrhythmia_spec___1.factor)=c("Unchecked","Checked")
 levels(data$history_arrhythmia_spec___2.factor)=c("Unchecked","Checked")

@@ -6,7 +6,9 @@ library(table1)
 # read data
 data <- read_csv("data/cleaned_analysis_data.csv") %>%
   mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "No shock")) %>%
-  mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "Other", , after = length(levels(cs_etiology))))
+  mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "Other", , after = length(levels(cs_etiology)))) %>%
+  mutate(ckd_stage = as.ordered(ckd_stage)) %>%
+  mutate(copd_stage = as.ordered(copd_stage))
 
 # parse labels and units
 label(data$age)          <- "Age"
