@@ -4,6 +4,8 @@ library(tidyverse)
 library(readxl)
 
 # flexible values
+# TODO: used Q3 + 3xIQR of pre_vis for vis_score_upper_threshold, is this appropriate?
+vis_score_upper_threshold <- 175
 
 # load helpers
 source("scripts/helpers.R")
@@ -44,16 +46,9 @@ clean <- data %>%
     lactate   = pre_lactate,          # TODO: the correct lactate?
 
     # pre_vis had non-numeric values that threw coercion errors
-    #TODO: check if this is correct 1/9
-    #Bug occurs with comma separated decimal points, figure out how to cast to decimal.
-    pre_vis   = as.character(pre_vis), # convert to character
-    pre_vis   = na_if(pre_vis, ""),    # replace empty strings with NA
-
-    # replace non-numeric values with NA
-    pre_vis   = ifelse(grepl("^\\d+$", pre_vis), pre_vis, NA),
     pre_vis   = as.numeric(pre_vis), # convert to numeric
     vis_score = case_when(
-                          as.numeric(pre_vis) > 100 ~ 100,
+                          as.numeric(pre_vis) > vis_score_upper_threshold ~ vis_score_upper_threshold,
                           TRUE ~ as.numeric(pre_vis))
   ) %>%
 
@@ -411,6 +406,14 @@ vent_duration <- vent_duration %>%
   mutate(ecls_duration = as.difftime(as.character(ecls_duration), units = "days"),
          impella_duration = as.difftime(as.character(impella_duration), units = "days")) %>%
   rows_patch(., mcs_duration)
+
+## identify outliers and extreme values
+# here values above Q3 + 1.5xIQR or below Q1 - 1.5xIQR are considered as outliers.
+# Values above Q3 + 3xIQR or below Q1 - 3xIQR are considered as extreme points (or extreme outliers).
+
+outliers <- vent_duration %>%
+  rstatix::identify_outliers(pre_vis)
+
 
 
 # create final output dataframe
