@@ -19,7 +19,7 @@ data %>%
   mutate_all(as.double) %>%
   as.matrix() %>%
   Hmisc::rcorr(., type = c("pearson", "spearman")) %>%
-  broom::tidy() %>%
+  broom::tidy() #%>%
   filter(abs(estimate) >= 0.3) # consider correlations above 0.3
 
 # propensity score matching
@@ -27,7 +27,9 @@ data %>%
 # 1:1 NN PS matching w/o replacement
 
 matched_subjects <- data %>%
-  matchit(formula = group ~ age + sex + ns(bmi) + ns(lactate) + ns(vis_score),
+  matchit(formula = group ~ age + sex + ns(bmi) + ns(vis_score) + ns(lactate) +
+          ns(vis_score) * age +
+          ns(vis_score) * ns(lactate),
           data = ., method = "nearest",
           distance = "glm", link = "logit",
           ratio = 1)
@@ -43,18 +45,18 @@ dev.off()
 png("figs/propensity_scores_densities.png",
     width = 25, height = 25, units = "cm", res = 300)
 plot(matched_subjects, type = "density", interactive = FALSE,
-     which.xs = ~ `age` + `ns(bmi)` + `ns(lactate)`)
+     which.xs = ~ `age` + `ns(bmi)` + `ns(vis_score)`)
 dev.off()
 
 # examine qq plot for matched_sets
 png("figs/propensity_scores_qq.png",
     width = 25, height = 25, units = "cm", res = 300)
 plot(matched_subjects, type = "qq", interactive = FALSE,
-     which.xs = c("age", "ns(bmi)", "ns(lactate)"))
+     which.xs = c("age", "ns(bmi)", "ns(vis_score)"))
 dev.off()
 
 
-v <- data.frame(old = c("age", "sex_male", "ns(bmi)_1", "ns(lactate)_1",
+v <- data.frame(old = c("age", "sex_Male", "ns(bmi)_1", "ns(lactate)_1",
                         "ns(vis_score)_1"),
                 new = c("Age", "Sex (ref = Male)", "BMI",
                         "Lactate", "VIS"))

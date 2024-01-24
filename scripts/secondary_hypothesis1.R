@@ -34,7 +34,7 @@ matched_data %>%
 # fit logistic regression model
 model <- matched_data %>%
   glm(hosp_surv_yn ~ group * aki_max,
-      data = .)
+      data = ., weights = weights)
 
 png("figs/marginal_effects_plot.png", width = 40, height = 30, units = "cm", res = 300)
 plot(effects::predictorEffects(model))
@@ -42,5 +42,7 @@ dev.off()
 
 model %>%
   tbl_regression(., exponentiate = TRUE) %>%
+  add_n() %>%
+  add_glance_source_note() %>%
   as_gt() %>%
   gt::gtsave(filename = "tbls/regs/secondary_hypothesis_1.docx")

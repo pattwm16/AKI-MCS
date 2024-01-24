@@ -1,11 +1,10 @@
 ## load in libraries for cleaning
 library(janitor)
+library(visdat)
 library(tidyverse)
 library(readxl)
 
 # flexible values
-# TODO: used Q3 + 3xIQR of pre_vis for vis_score_upper_threshold, is this appropriate?
-vis_score_upper_threshold <- 175
 
 # load helpers
 source("scripts/helpers.R")
@@ -47,8 +46,7 @@ clean <- data %>%
 
     # pre_vis had non-numeric values that threw coercion errors
     pre_vis   = as.numeric(pre_vis), # convert to numeric
-    vis_score = case_when(
-                          as.numeric(pre_vis) > vis_score_upper_threshold ~ vis_score_upper_threshold,
+    vis_score = case_when(as.numeric(pre_vis) > 175 ~ 175,
                           TRUE ~ as.numeric(pre_vis))
   ) %>%
 
@@ -91,7 +89,7 @@ clean <- data %>%
     cpb_fail      = as.logical(pre_failure_cpb),
     ecpr          = (reason_ecls.factor == "Cardiopulmonary Reanimation"),
     aki_yn        = as.logical(aki),
-    nephtox_rx    = (vanc_iv | gentamycin | tobramycin)
+    nephtox_rx    = ifelse((vanc_iv | gentamycin | tobramycin), TRUE, FALSE)
   ) %>%
 
   # boolean ecls and rrt variables
@@ -105,7 +103,6 @@ clean <- data %>%
   ) %>%
 
   # causes of cardiogenic shock
-  # TODO: 53 patients are still listed as no shock, what etiology do they have?
   mutate(
     # AMICS
     cs_amics = case_when(
@@ -363,20 +360,20 @@ vent_duration <- vent_duration %>%
   rows_patch(., lengths_of_stay)
 
 
-# TODO: icu_los = ...
-
+# TODO icu_los
 #icu_los <- vent_duration %>%
+#  mutate() %>%
 
 
-# create ever received nephrotoxic drugs
+# create ever received nephrotoxic drugs during hospital stay
 nephrotox_rx <- vent_duration %>%
   group_by(record_id) %>%
   filter(redcap_repeat_instrument == "hemodynamics_ventilation_medication") %>%
   group_by(id) %>%
   mutate(
-    rx_nephrotox = case_when(is.na(nephtox_rx) ~ NA,
-                                  any(nephtox_rx == TRUE) ~ TRUE,
-                                  .default = FALSE),
+    rx_nephrotox = case_when(is.na(nephtox_rx) ~ FALSE,
+                             any(nephtox_rx == TRUE) ~ TRUE,
+                             .default = FALSE),
     abx_yn       = any(any_abx == TRUE)
   ) %>%
   ungroup() %>%
@@ -414,8 +411,6 @@ vent_duration <- vent_duration %>%
 outliers <- vent_duration %>%
   rstatix::identify_outliers(pre_vis)
 
-
-
 # create final output dataframe
 constructed <- vent_duration %>%
   select(
@@ -447,8 +442,12 @@ constructed <- vent_duration %>%
     erythromyc, caspofungn, amph_b_inh, metronid, other_abx
   ) %>%
   group_by(record_id) %>%
+  mutate(
+    rx_nephrotox = replace_na(rx_nephrotox, FALSE),
+    ecpr = replace_na(ecpr, FALSE),
+    mi_yn = replace_na(mi_yn, FALSE)
+  ) %>%
   filter(row_number() == 1) %>%    # condense to a single row per patient
-  mutate(cs_etiology = replace_na(cs_etiology, "No shock")) %>%
   filter(!is.na(death)) %>%      # only include patient with outcomes
   # TODO: 347 and 850 died before admitted?
   filter(hosp_los >= lubridate::ddays(0)) %>%
@@ -460,3 +459,6 @@ write_csv(constructed, "data/cleaned_analysis_data.csv",
 
 # save R object
 save(constructed, file = "data/cleaned_analysis_data.Rda")
+
+# visualize raw data
+vis_dat(constructed)
