@@ -6,9 +6,10 @@ library(table1)
 # read data
 data <- read_csv("data/cleaned_analysis_data.csv") %>%
   #mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "No shock")) %>%
-  mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "Other", , after = 3)) %>%
+  #mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "Other", , after = 3)) %>%
   mutate(ckd_stage = as.ordered(ckd_stage)) %>%
-  mutate(copd_stage = as.ordered(copd_stage))
+  mutate(copd_stage = as.ordered(copd_stage)) %>%
+  mutate(pre_ph = pre_ph / 100)
 
 # parse labels and units
 label(data$age)          <- "Age"
@@ -20,8 +21,8 @@ label(data$ckd_yn)       <- "Chronic kidney disease"
 label(data$copd_yn)      <- "Chronic obstructive pulmonary disease"
 label(data$copd_stage)   <- "Chronic obstructive pulmonary disease (stage)"
 label(data$lactate)      <- "Lactate"
-label(data$med_ph)       <- "Median pH"
-label(data$med_cr)       <- "Median creatinine"
+label(data$pre_ph)       <- "pH (prior to tMCS)"
+label(data$pre_cr)       <- "Creatinine (prior to tMCS)"
 label(data$vis_score)    <- "Vasoactive-inotropic score (VIS)ᵇ"
 label(data$pre_rrt_yn)   <- "RRT required (prior to tMCS)"
 label(data$mi_yn)        <- "Previous cardiac arrest"
@@ -36,13 +37,13 @@ units(data$med_cr)  <- "mg/dL" # TODO: is this the right unit?
 footnote <- paste0("ᵃ Stage 3a and 3b were coded as 3 and 4, respectively. The remaining stages were increased by one value.<br>", "ᵇ VIS, a weighted sum of vasopressor and inotropic medications, quantifies the amount of pharmacological cardiovascular support in patients on tMCS.<br>", "ᶜ  Vancomycin (IV), gentamycin, or tobramycin")
 
 # create table 1
-tab1 <- data %>%
+(tab1 <- data %>%
   table1(
-    ~ age + sex + bmi + diabetes + ckd_yn + ckd_stage + copd_yn +
-      lactate + med_ph + vis_score + pre_rrt_yn + med_cr + cs_etiology + mi_yn +
+    ~ age + sex + bmi + diabetes + ckd_yn + copd_yn +
+      lactate + pre_ph + vis_score + pre_rrt_yn + pre_cr + cs_etiology + mi_yn +
       ecpr + rx_nephrotox | group,
     data = ., footnote = footnote
-  )
+  ))
 
 # save tables as .docx and image
 t1flex(tab1) %>%

@@ -6,10 +6,9 @@ library(tidyverse)
 
 # data load
 data <- read_csv("data/cleaned_analysis_data.csv") %>%
-  mutate(group = as.factor(group)) %>%
+  mutate(group = as.factor(group)) #%>%
   # TODO: this reduces the number of effective cases for comparison
   # age: 99.8%; sex: 100%; bmi: 92.0%; lactate: 83.2%;
-  # vis_score: 48.2%
   filter(complete.cases(age, sex, bmi, lactate, vis_score))
 
 # what interactions should we take into account?

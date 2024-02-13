@@ -8,6 +8,7 @@ library(tidyverse)
 
 # data load
 data <- read_csv("data/cleaned_analysis_data.csv")
+# TODO: should have aki 3 with RRT and aki 3 without RRT
 matched_data <- read_csv("data/cleaned_matched_data.csv") %>%
   mutate(aki_max = case_when(
     aki_max == "no aki" ~ "No aki",
@@ -32,6 +33,7 @@ matched_data %>%
   group_by(aki_max) %>%
   tabyl(aki_max)
 # fit logistic regression model
+# no aki should be reference level
 model <- matched_data %>%
   glm(hosp_surv_yn ~ group * aki_max,
       data = ., weights = weights)

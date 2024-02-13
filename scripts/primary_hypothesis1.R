@@ -8,60 +8,77 @@ library(tidyverse)
 
 # data load
 data <- read_csv("data/cleaned_analysis_data.csv")
-matched_data <- read_csv("data/cleaned_matched_data.csv")
-weighted_data <- read_csv("data/cleaned_weighted_data.csv")
+
+label(data$rrt_group)      <- "Renal replacement therapy"
+label(data$group)          <- "tMCS group"
+
+# count need for RRT by survival to discharge
+data %>%
+  group_by(rrt_group) %>%
+  tabyl(rrt_group, hosp_surv_yn) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 1) %>%
+  adorn_ns() %>%
+  adorn_title()
 
 # primary hypothesis ---
 # patients in CS w/ tMCS have lower survival to hospital discharge rate
 # when additionally needing RRT
 
-# count need for RRT by survival to discharge
-matched_data %>%
-  group_by(rrt_yn) %>%
-  tabyl(rrt_yn, hosp_surv_yn) %>%
-  adorn_totals(c("col", "row")) %>%
-  adorn_title()
+# regression analysis
+# outcome: hosp_surv_yn (binary, died/survived)
+# confounders: age, sex, bmi, vis_score, lactate
+# treatment: rrt_group (factor, none/before/after/before&after)
 
-# label matched_data
-labelled::var_label(matched_data) <- list(
-  group = 'tCMS group',
-  rrt_yn = 'Need for RRT'
-)
+reg_data <- data %>%
+  select(age, sex, bmi, vis_score, pre_cr, rrt_group, hosp_surv_yn) %>%
+  filter(complete.cases(.))
 
-# Fit the logistic regression model
-model <- glm(hosp_surv_yn ~ rrt_yn, family = binomial,
-             data = matched_data, weights = weights)
+model.unadj <- glm(hosp_surv_yn ~ rrt_group, family = "binomial",
+                   data = reg_data)
+
+model.full  <- glm(hosp_surv_yn ~ age + sex + bmi + vis_score + pre_cr + rrt_group + group,
+                   family = "binomial",
+                   data = data)
 
 ## save as .docx
-model %>%
+(model.full %>%
   tbl_regression(., exponentiate = TRUE) %>%
   add_n() %>%
+  italicize_levels() %>%
   add_glance_source_note() %>%
+  modify_caption("**Primary hypothesis: RRT requirement and survival to hospital discharge**")) %>%
   as_gt() %>%
-  gt::gtsave(filename = "tbls/regs/primary_hypothesis.docx")
+  gt::gtsave(filename = "tbls/regs/primary_hypothesis_logit.docx")
 
-# Calculate the proportions
-proportions <- matched_data %>%
-  group_by(cs_etiology, rrt_yn, hosp_surv_yn) %>%
-  summarise(n = n(), .groups = "drop") %>%
-  mutate(prop = n / sum(n)) %>%
-  mutate(hosp_surv_yn = recode(as.character(hosp_surv_yn), "TRUE" = "Survived to discharge", "FALSE" = "Died prior to discharge")) %>%
-  #mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "No shock")) %>%
-  mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "Other", , after = length(levels(cs_etiology)))) %>%
-  mutate(hosp_surv_yn = forcats::fct_rev(hosp_surv_yn))
+# check linearity
+probabilities <- predict(model.full, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "Survived to discharge", "Died prior to discharge")
 
-# Create the bar chart
-(p1 <- ggplot(proportions, aes(x = cs_etiology, y = prop, fill = rrt_yn)) +
-    geom_bar(stat = "identity", position = "fill", alpha = 0.6) +
-    geom_text(aes(label = n), position = position_fill(vjust = 0.5), size = 3) +
-    scale_fill_manual(values = c("TRUE" = "#DAA520", "FALSE" = "lightgrey"), labels = c("TRUE" = "Required", "FALSE" = "Not required")) +
-    facet_grid(hosp_surv_yn ~ .) +
-    scale_y_continuous(labels = scales::percent) +
-    labs(x = "Etiology of cardiogenic shock",
-         y = "",
-         fill = "Need for RRT",
-         caption = "RRT was defined as one or more days of either hemodialysis or continuous hemofiltration while undergoing tMCS"
-        ) +
-    hrbrthemes::theme_ipsum(grid = "Y"))
+linearity_assumption <- as_tibble(cbind(reg_data, probabilities, predicted.classes)) %>%
+  mutate(logit = log(probabilities / (1 - probabilities))) %>%
+  select_if(is.numeric) %>%
+  gather(key = "predictors", value = "predictor.value", -logit)
+predictors <- colnames(linearity_assumption)
 
-ggsave("figs/need_rrt_by_hosp_surv.png", plot = p1, bg = 'white')
+linearity_assumption %>%
+  ggplot(aes(logit, predictor.value)) +
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess") +
+  theme_bw() +
+  facet_wrap(~ predictors, scales = "free_y")
+
+ggsave("figs/linearity_assumption.png", bg = 'white')
+
+# check for influential values
+plot(model.full, which = 4, id.n = 3)
+
+# marginal effects
+plot_predictions(model.full, condition = c('group', 'rrt_group')) +
+  labs(title = "Predicted probability of survival to hospital discharge",
+       color  = "Renal replacement therapy",
+       x     = "tMCS group",
+       y = "OR") +
+  theme_bw()
+
+ggsave("figs/predicted_prob_survival.png", bg = 'white')

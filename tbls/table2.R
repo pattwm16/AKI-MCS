@@ -4,7 +4,10 @@ library(flextable)
 library(table1)
 
 #load("../data/cleaned_analysis_data.Rda")
-data <- read_csv("data/cleaned_matched_data.csv")
+data <- read_csv("data/cleaned_analysis_data.csv") %>%
+  mutate(
+    vent_duration = as.numeric(vent_duration, units = "days")
+  )
 
 # parse label
 label(data$aki_s1)          <- "AKI - Stadium 1"
@@ -13,25 +16,25 @@ label(data$aki_s3)          <- "AKI - Stadium 3"
 label(data$pre_rrt_yn)      <- "RRT prior to tMCS"
 label(data$rrt_duration)    <- "Duration of RRT"
 label(data$vent_duration)   <- "Duration of ventilation"
-#label(data$icu_los)        <- "Length of ICU stay"
+label(data$icu_los)         <- "Length of ICU stay"
 label(data$hosp_los)        <- "Length of hospital stay"
 label(data$hosp_surv_yn)    <- "Survival to hospital discharge"
 
+# add labels
 units(data$rrt_duration)    <- "days"
 units(data$vent_duration)   <- "days"
-#units(data$icu_los)        <- "days"
+units(data$icu_los)         <- "days"
 units(data$hosp_los)        <- "days"
 
-
 # create table 2
-tab2 <- data %>%
+(tab2 <- data %>%
   table1(
     ~ aki_s1 + aki_s2 + aki_s3 + pre_rrt_yn + pre_rrt_yn + rrt_duration +
       vent_duration +
-      # icu_los +
+      icu_los +
       hosp_los + hosp_surv_yn | group,
     data = .
-  )
+  ))
 
 # save tables as .docx and image
 t1flex(tab2) %>%
