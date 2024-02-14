@@ -5,8 +5,7 @@ library(table1)
 
 # read data
 data <- read_csv("data/cleaned_analysis_data.csv") %>%
-  #mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "No shock")) %>%
-  #mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "Other", , after = 3)) %>%
+  mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "Other", , after = 3)) %>%
   mutate(ckd_stage = as.ordered(ckd_stage)) %>%
   mutate(copd_stage = as.ordered(copd_stage)) %>%
   mutate(pre_ph = pre_ph / 100)
@@ -15,32 +14,32 @@ data <- read_csv("data/cleaned_analysis_data.csv") %>%
 label(data$age)          <- "Age"
 label(data$sex)          <- "Sex"
 label(data$bmi)          <- "BMI"
-label(data$diabetes)     <- "Diabetes (Type II)"     # TODO: I assume?
+label(data$diabetes)     <- "Diabetes (Type II)"
 label(data$ckd_yn)       <- "Chronic kidney disease"
-#label(data$ckd_stage)    <- "Chronic kidney disease (stage)ᵃ"
 label(data$copd_yn)      <- "Chronic obstructive pulmonary disease"
 label(data$copd_stage)   <- "Chronic obstructive pulmonary disease (stage)"
-label(data$lactate)      <- "Lactate"
+label(data$pre_lactate)  <- "Lactate (prior to tMCS)"
 label(data$pre_ph)       <- "pH (prior to tMCS)"
 label(data$pre_cr)       <- "Creatinine (prior to tMCS)"
-label(data$vis_score)    <- "Vasoactive-inotropic score (VIS)ᵇ"
+label(data$vis_score)    <- "Vasoactive-inotropic score (VIS)ᵃ"
 label(data$pre_rrt_yn)   <- "RRT required (prior to tMCS)"
 label(data$mi_yn)        <- "Previous cardiac arrest"
 label(data$ecpr)         <- "eCPR"
-label(data$rx_nephrotox) <- "Nephrotoxic drugsᶜ "
+label(data$rx_nephrotox) <- "Nephrotoxic drugsᵇ"
 label(data$cs_etiology)  <- "Etiology of cardiogenic shock"
 
 units(data$age)     <- "years"
-units(data$lactate) <- "mg/dL" # TODO: is this the right unit?
+units(data$pre_lactate) <- "mg/dL" # TODO: is this the right unit?
 units(data$med_cr)  <- "mg/dL" # TODO: is this the right unit?
 
-footnote <- paste0("ᵃ Stage 3a and 3b were coded as 3 and 4, respectively. The remaining stages were increased by one value.<br>", "ᵇ VIS, a weighted sum of vasopressor and inotropic medications, quantifies the amount of pharmacological cardiovascular support in patients on tMCS.<br>", "ᶜ  Vancomycin (IV), gentamycin, or tobramycin")
+footnote <- paste0("ᵃ VIS, a weighted sum of vasopressor and inotropic medications, quantifies the amount of pharmacological cardiovascular support in patients on tMCS.<br>", "ᵇ Vancomycin (IV), gentamycin, or tobramycin")
 
 # create table 1
+# TODO: should we report log(vis_score)?
 (tab1 <- data %>%
   table1(
     ~ age + sex + bmi + diabetes + ckd_yn + copd_yn +
-      lactate + pre_ph + vis_score + pre_rrt_yn + pre_cr + cs_etiology + mi_yn +
+      pre_lactate + pre_ph + vis_score + pre_rrt_yn + pre_cr + cs_etiology + mi_yn +
       ecpr + rx_nephrotox | group,
     data = ., footnote = footnote
   ))

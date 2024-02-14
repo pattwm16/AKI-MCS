@@ -1,19 +1,13 @@
 ## load in libraries for cleaning
 library(janitor)
-library(visdat)
-library(anytime)
 library(readxl)
 library(haven)
 library(tidyverse)
-
-
-# flexible values
 
 # load helpers
 source("scripts/helpers.R")
 
 # get path to raw excel file
-#source("scripts/dataLoad.R")
 source("scripts/data_with_icu_los.R")
 
 #Group 1: ECLS; Variable: “Baseline (Arm 1: ECLS)” and “ECLS (Arm 1: ECLS)”
@@ -41,18 +35,17 @@ clean <- data %>%
     death = as.logical(death)
   ) %>%
 
-  # PSM features
+  # potential confounders
   mutate(
-    age       = coalesce(age_ecls_1, age_ecls_2),
-    sex       = sex.factor,
-    bmi       = (weight / (height / 100)^2),
-    lactate   = pre_lactate,          # TODO: the correct lactate?
-    pre_cr    = as.numeric(pre_crea),
-    pre_ph    = as.numeric(pre_ph),
+    age         = coalesce(age_ecls_1, age_ecls_2),
+    sex         = sex.factor,
+    bmi         = (weight / (height / 100)^2),
 
-    # pre_vis had non-numeric values that threw coercion errors
-    pre_vis   = as.numeric(pre_vis), # convert to numeric
-    vis_score = case_when(as.numeric(pre_vis) > 175 ~ 175,
+    # pre tMCS
+    pre_lactate = pre_lactate,
+    pre_cr      = as.numeric(pre_crea),
+    pre_ph      = as.numeric(pre_ph),
+    vis_score = case_when(log(as.numeric(pre_vis)) > 10 ~ 10,
                           TRUE ~ as.numeric(pre_vis))
   ) %>%
 
@@ -89,7 +82,6 @@ clean <- data %>%
     ph            = as.numeric(ph),
     pre_rrt_yn    = as.logical(pre_renal_repl),
     pre_rrt_type  = as.factor(pre_renal_repl_spec.factor),
-    # TODO: this (crea) raises error
     cr            = as.numeric(crea),
     mi_yn         = as.logical(pre_cardiac_arrest),
     postcard      = as.logical(pre_postcard),
@@ -100,16 +92,11 @@ clean <- data %>%
   ) %>%
 
   # boolean ecls and rrt variables
-  # boolean ecls and rrt variables
   mutate(
     ecls_start = parse_date_time(paste(ecls_start_date, ecls_start_time), "%m/%d/%y %H:%M:%S"),
     ecls_stop = parse_date_time(paste(ecls_stop_date, ecls_stop_time), "%m/%d/%y %H:%M:%S"),
     impella_start = parse_date_time(paste(impella_start_date, impella_start_time), "%m/%d/%y %H:%M:%S"),
     impella_stop = parse_date_time(paste(impella_stop_date, impella_stop_time), "%m/%d/%y %H:%M:%S"),
-    #ecls_start_date = anytime(ecls_start_date),
-    #ecls_stop_date = anytime(ecls_stop_date),
-    #impella_start_date = anytime(impella_start_date),
-    #impella_stop_date = anytime(impella_stop_date),
     ecls_rrt_type = as.factor(renal_repl.factor), # during ecls
   ) %>%
 
@@ -154,6 +141,7 @@ clean <- data %>%
     aki_s1 = as.logical((aki_1_1 == 1) | (aki_1_2 == 1)),
     aki_s2 = as.logical((aki_2 == 2)),
     aki_s3 = as.logical(((aki_3_1 == 3) | (aki_3_2 == 3))),
+    aki_rrt = as.logical(aki_3_2 == 3),
   ) %>%
   # TODO: add AKI:RRT from protocol
 
@@ -161,7 +149,7 @@ clean <- data %>%
   group_by(record_id) %>%
   fill(id, age, sex, bmi, vis_score, diabetes, death, ckd_yn, ckd_stage,
        copd_yn,
-       copd_stage, lactate, mi_yn, postcard, cpb_fail, ecpr, cs_etiology,
+       copd_stage, pre_lactate, mi_yn, postcard, cpb_fail, ecpr, cs_etiology,
        pre_rrt_yn, pre_rrt_type,
        # TODO: should these be filled here?
        aki_yn, aki_s1, aki_s2, aki_s3, pre_cr, pre_ph,
@@ -170,11 +158,13 @@ clean <- data %>%
        .direction = "downup") %>%
   # fill NAs with FALSE
   mutate(
-    aki_s1 = replace_na(aki_s1, FALSE),
-    aki_s2 = replace_na(aki_s2, FALSE),
-    aki_s3 = replace_na(aki_s3, FALSE),
-    aki_yn = replace_na(aki_yn, FALSE),
+    aki_s1  = replace_na(aki_s1, FALSE),
+    aki_s2  = replace_na(aki_s2, FALSE),
+    aki_s3  = replace_na(aki_s3, FALSE),
+    aki_rrt = replace_na(aki_rrt, FALSE),
+    aki_yn  = replace_na(aki_yn, FALSE),
     aki_max = case_when(
+      aki_rrt ~ "rrt",
       aki_s3 ~ "s3",
       aki_s2 ~ "s2",
       aki_s1 ~ "s1",
@@ -434,7 +424,7 @@ constructed <- vent_duration %>%
     ecls_start, ecls_stop, impella_start, impella_stop,
     ecls_duration, impella_duration,
     # clinical markers
-    pre_cr, pre_ph, med_cr, min_cr, max_cr, med_ph, min_ph, max_ph, lactate, vis_score,
+    pre_cr, pre_ph, med_cr, min_cr, max_cr, med_ph, min_ph, max_ph, pre_lactate, vis_score,
     # rrt
     pre_rrt_yn, pre_rrt_type,
     ecls_rrt_type, rrt_yn, rrt_duration,
@@ -459,16 +449,18 @@ constructed <- vent_duration %>%
   filter(row_number() == 1) %>%    # condense to a single row per patient
   filter(!is.na(hosp_surv_yn)) %>%      # only include patient with outcomes
   # TODO: 347 and 850 died before admitted?
-  filter(hosp_los >= lubridate::ddays(0))
+  filter(hosp_los >= lubridate::ddays(0)) %>%
+  ungroup()
 
 # create gradated RRT groups
 constructed <- mutate(constructed,
                       rrt_group = case_when(
                         !pre_rrt_yn & !rrt_yn ~ "No RRT",
-                        pre_rrt_yn & !rrt_yn ~ "RRT before tMCS only",
+                        pre_rrt_yn & !rrt_yn ~ "RRT before and during tMCS",
                         !pre_rrt_yn & rrt_yn ~ "RRT during tMCS only",
                         pre_rrt_yn & rrt_yn ~ "RRT before and during tMCS"
-                      ))
+                      )) %>%
+                      mutate(rrt_group = fct_relevel(rrt_group, "RRT before and during tMCS", after = Inf))
 
 # examine data distribution and types
 write_csv(constructed, "data/cleaned_analysis_data.csv",
@@ -482,4 +474,4 @@ save(constructed, file = "data/cleaned_analysis_data.Rda")
 # Values above Q3 + 3xIQR or below Q1 - 3xIQR are considered as extreme points (or extreme outliers).
 
 (outliers <- constructed %>%
-  rstatix::identify_outliers(hosp_los))
+  rstatix::identify_outliers("age"))

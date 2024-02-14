@@ -27,15 +27,14 @@ data %>%
 # 1:1 NN PS matching w/o replacement
 
 weighted_subjects <- data %>%
-  weightit(formula = group ~ age + sex + ns(bmi) + ns(lactate) + ns(vis_score),
-  estimand = "ATE", method = "glm")
-
+  weightit(formula = hosp_surv_yn ~ ns(age,2) + sex + bmi + lactate + vis_score,
+           data = ., method = "ps", estimand = "ATT")
+bal.tab(weighted_subjects)
 summary(weighted_subjects)
 
-v <- data.frame(old = c("age", "sex_male", "ns(bmi)1", "ns(lactate)1",
-                        "ns(vis_score)1"),
+v <- data.frame(old = c("age", "sex_male", "bmi", "mi_yn", "ecpr", "rx_nephrotox"),
                 new = c("Age", "Sex (ref = Male)", "BMI",
-                        "Lactate", "VIS"))
+                        "Prior MI", "eCPR", "Nephrotoxic drugs"))
 
 # love plot to assess balance
 (weighted_subjects %>% love.plot(thresholds = c(m = .1),
@@ -47,7 +46,7 @@ v <- data.frame(old = c("age", "sex_male", "ns(bmi)1", "ns(lactate)1",
                                 stars = "raw"))
 
 # generate table with balance statistics
-(data %>% bal.tab(group ~ age + sex + ns(bmi) + ns(lactate) + ns(vis_score), data = .,
+(data %>% bal.tab(group ~ age + sex + bmi + cs_etiology + mi_yn + ecpr + rx_nephrotox, data = .,
                   thresholds = c(m = .1, v = 2),
                   s.d.denom = "pooled"))
 (weighted_subjects %>% bal.tab(thresholds = c(m = .1, v = 2)))

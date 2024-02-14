@@ -7,7 +7,10 @@ library(gtsummary)
 library(tidyverse)
 
 # data load
-data <- read_csv("data/cleaned_analysis_data.csv")
+data <- read_csv("data/cleaned_analysis_data.csv") %>%
+  mutate(log_vis_score = log(vis_score)) %>%
+  mutate(rrt_group = fct_relevel(rrt_group, "RRT before and during tMCS", after = Inf))
+#data <- read_csv("data/cleaned_weighted_data.csv")
 
 label(data$rrt_group)      <- "Renal replacement therapy"
 label(data$group)          <- "tMCS group"
@@ -31,13 +34,10 @@ data %>%
 # treatment: rrt_group (factor, none/before/after/before&after)
 
 reg_data <- data %>%
-  select(age, sex, bmi, vis_score, pre_cr, rrt_group, hosp_surv_yn) %>%
+  select(age, sex, bmi, log_vis_score, pre_cr, rrt_group, hosp_surv_yn) %>%
   filter(complete.cases(.))
 
-model.unadj <- glm(hosp_surv_yn ~ rrt_group, family = "binomial",
-                   data = reg_data)
-
-model.full  <- glm(hosp_surv_yn ~ age + sex + bmi + vis_score + pre_cr + rrt_group + group,
+model.full  <- glm(hosp_surv_yn ~ age + sex + bmi + log_vis_score + pre_cr + rrt_group,
                    family = "binomial",
                    data = data)
 
@@ -57,28 +57,37 @@ predicted.classes <- ifelse(probabilities > 0.5, "Survived to discharge", "Died 
 
 linearity_assumption <- as_tibble(cbind(reg_data, probabilities, predicted.classes)) %>%
   mutate(logit = log(probabilities / (1 - probabilities))) %>%
+  select(-probabilities) %>%
   select_if(is.numeric) %>%
   gather(key = "predictors", value = "predictor.value", -logit)
 predictors <- colnames(linearity_assumption)
 
 linearity_assumption %>%
-  ggplot(aes(logit, predictor.value)) +
+  ggplot(aes(predictor.value, exp(logit))) +
   geom_point(size = 0.5, alpha = 0.5) +
   geom_smooth(method = "loess") +
   theme_bw() +
-  facet_wrap(~ predictors, scales = "free_y")
+  facet_wrap(~ predictors, scales = "free_x")
 
 ggsave("figs/linearity_assumption.png", bg = 'white')
+
+# check residuals for patterns
+plot(resid(model.full), type = "p")
+
+# check for collinearity
+vif(model.full)
 
 # check for influential values
 plot(model.full, which = 4, id.n = 3)
 
 # marginal effects
-plot_predictions(model.full, condition = c('group', 'rrt_group')) +
+plot_predictions(model.full,
+    type = "invlink(link)",
+    condition = c('rrt_group')) +
   labs(title = "Predicted probability of survival to hospital discharge",
        color  = "Renal replacement therapy",
        x     = "tMCS group",
-       y = "OR") +
-  theme_bw()
+       y = "Odds ratio for survival to discharge") +
+  theme_classic()
 
 ggsave("figs/predicted_prob_survival.png", bg = 'white')

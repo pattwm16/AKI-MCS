@@ -3,16 +3,20 @@ library(tidyverse)
 library(flextable)
 library(table1)
 
-#load("../data/cleaned_analysis_data.Rda")
 data <- read_csv("data/cleaned_analysis_data.csv") %>%
   mutate(
-    vent_duration = as.numeric(vent_duration, units = "days")
-  )
+    vent_duration = as.numeric(vent_duration, units = "days"),
+    aki_max = case_when(
+    aki_max == "no aki" ~ "No AKI",
+    aki_max == "s1" ~ "Stage 1",
+    aki_max == "s2" ~ "Stage 2",
+    aki_max == "s3" ~ "Stage 3",
+    aki_max == "rrt" ~ "RRT",
+    TRUE ~ aki_max
+  ))
 
 # parse label
-label(data$aki_s1)          <- "AKI - Stadium 1"
-label(data$aki_s2)          <- "AKI - Stadium 2"
-label(data$aki_s3)          <- "AKI - Stadium 3"
+label(data$aki_max)         <- "Max KDIGO AKI Stage" # TODO: during what time were we looking?
 label(data$pre_rrt_yn)      <- "RRT prior to tMCS"
 label(data$rrt_duration)    <- "Duration of RRT"
 label(data$vent_duration)   <- "Duration of ventilation"
@@ -29,7 +33,7 @@ units(data$hosp_los)        <- "days"
 # create table 2
 (tab2 <- data %>%
   table1(
-    ~ aki_s1 + aki_s2 + aki_s3 + pre_rrt_yn + pre_rrt_yn + rrt_duration +
+    ~ aki_max + pre_rrt_yn + pre_rrt_yn + rrt_duration +
       vent_duration +
       icu_los +
       hosp_los + hosp_surv_yn | group,

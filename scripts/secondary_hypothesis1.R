@@ -7,9 +7,7 @@ library(effects)
 library(tidyverse)
 
 # data load
-data <- read_csv("data/cleaned_analysis_data.csv")
-# TODO: should have aki 3 with RRT and aki 3 without RRT
-matched_data <- read_csv("data/cleaned_matched_data.csv") %>%
+data <- read_csv("data/cleaned_weighted_data.csv") %>%
   mutate(aki_max = case_when(
     aki_max == "no aki" ~ "No aki",
     aki_max == "s1" ~ "S1",
@@ -19,7 +17,7 @@ matched_data <- read_csv("data/cleaned_matched_data.csv") %>%
   ))
 
 # label matched_data
-labelled::var_label(matched_data) <- list(
+labelled::var_label(data) <- list(
   group = 'tCMS group',
   aki_max = 'Maximal AKI stadium'
 )
@@ -34,17 +32,51 @@ matched_data %>%
   tabyl(aki_max)
 # fit logistic regression model
 # no aki should be reference level
-model <- matched_data %>%
-  glm(hosp_surv_yn ~ group * aki_max,
-      data = ., weights = weights)
+reg_data <- data %>%
+  filter(complete.cases(age, sex, bmi, vis_score, pre_cr, rrt_group, group, aki_max, hosp_surv_yn))
+
+model.full <- data %>%
+  glm(hosp_surv_yn ~ age + sex + bmi + vis_score + pre_cr + rrt_group + aki_max,
+      data = ., family = "quasibinomial")
 
 png("figs/marginal_effects_plot.png", width = 40, height = 30, units = "cm", res = 300)
 plot(effects::predictorEffects(model))
 dev.off()
 
-model %>%
+model.full %>%
   tbl_regression(., exponentiate = TRUE) %>%
   add_n() %>%
+  italicize_levels() %>%
+  add_global_p() %>%
   add_glance_source_note() %>%
+  modify_caption("**Secondary hypothesis 1: Survival to hospital discharge in patients treated with tMCS or CS suffering from AKI correlates inversely with the severity of AKI-stadium**") %>%
   as_gt() %>%
   gt::gtsave(filename = "tbls/regs/secondary_hypothesis_1.docx")
+
+# check linearity
+probabilities <- predict(model.full, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "Survived to discharge", "Died prior to discharge")
+
+linearity_assumption <- as_tibble(cbind(reg_data, probabilities, predicted.classes)) %>%
+  mutate(logit = log(probabilities / (1 - probabilities))) %>%
+  select_if(is.numeric) %>%
+  gather(key = "predictors", value = "predictor.value", -logit)
+predictors <- colnames(linearity_assumption)
+
+linearity_assumption %>%
+  ggplot(aes(logit, predictor.value)) +
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess") +
+  theme_bw() +
+  facet_wrap(~ predictors, scales = "free_y")
+
+ggsave("figs/linearity_assumption.png", bg = 'white')
+
+# check for influential values
+plot(model.full, which = 4, id.n = 3)
+
+# marginal effects
+plot_predictions(model.full, condition = c('max_cr', 'aki_max')) +
+  theme_bw()
+
+ggsave("figs/predicted_prob_survival.png", bg = 'white')
