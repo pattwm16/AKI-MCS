@@ -12,17 +12,13 @@ data <- read_csv("data/cleaned_analysis_data.csv") %>%
   mutate(rrt_group = fct_relevel(rrt_group, "RRT before and during tMCS", after = Inf))
 #data <- read_csv("data/cleaned_weighted_data.csv")
 
-label(data$rrt_group)      <- "Renal replacement therapy"
-label(data$group)          <- "tMCS group"
-
-# count need for RRT by survival to discharge
-data %>%
-  group_by(rrt_group) %>%
-  tabyl(rrt_group, hosp_surv_yn) %>%
-  adorn_percentages("row") %>%
-  adorn_pct_formatting(digits = 1) %>%
-  adorn_ns() %>%
-  adorn_title()
+label(data$rrt_group)    <- "Renal replacement therapy"
+label(data$group)        <- "tMCS group"
+label(data$age)          <- "Age"
+label(data$sex)          <- "Sex"
+label(data$bmi)          <- "BMI"
+label(data$pre_cr)       <- "Creatinine (prior to tMCS)"
+label(data$log_vis_score) <- "log(Vasoactive-inotropic score)"
 
 # primary hypothesis ---
 # patients in CS w/ tMCS have lower survival to hospital discharge rate
@@ -49,7 +45,7 @@ model.full  <- glm(hosp_surv_yn ~ age + sex + bmi + log_vis_score + pre_cr + rrt
   add_glance_source_note() %>%
   modify_caption("**Primary hypothesis: RRT requirement and survival to hospital discharge**")) %>%
   as_gt() %>%
-  gt::gtsave(filename = "tbls/regs/primary_hypothesis_logit.docx")
+  gt::gtsave(filename = "regs/primary_hypothesis.docx")
 
 # check linearity
 probabilities <- predict(model.full, type = "response")
@@ -72,13 +68,17 @@ linearity_assumption %>%
 ggsave("figs/linearity_assumption.png", bg = 'white')
 
 # check residuals for patterns
+png("regs/diagnostics/pa1/residuals.png")
 plot(resid(model.full), type = "p")
+dev.off()
 
 # check for collinearity
 vif(model.full)
 
 # check for influential values
+png("regs/diagnostics/pa1/outliers.png")
 plot(model.full, which = 4, id.n = 3)
+dev.off()
 
 # marginal effects
 plot_predictions(model.full,
@@ -90,4 +90,4 @@ plot_predictions(model.full,
        y = "Odds ratio for survival to discharge") +
   theme_classic()
 
-ggsave("figs/predicted_prob_survival.png", bg = 'white')
+ggsave("figs/pa1_marginaleffects.png", bg = 'white')
