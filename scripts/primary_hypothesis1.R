@@ -8,7 +8,6 @@ library(tidyverse)
 
 # data load
 data <- read_csv("data/cleaned_analysis_data.csv") %>%
-  mutate(log_vis_score = log(vis_score)) %>%
   mutate(rrt_group = fct_relevel(rrt_group, "RRT before and during tMCS", after = Inf))
 #data <- read_csv("data/cleaned_weighted_data.csv")
 
@@ -65,7 +64,7 @@ linearity_assumption %>%
   theme_bw() +
   facet_wrap(~ predictors, scales = "free_x")
 
-ggsave("figs/linearity_assumption.png", bg = 'white')
+ggsave("regs/diagnostics/pa1/linearity.png", bg = 'white')
 
 # check residuals for patterns
 png("regs/diagnostics/pa1/residuals.png")

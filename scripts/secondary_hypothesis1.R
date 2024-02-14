@@ -7,7 +7,7 @@ library(effects)
 library(tidyverse)
 
 # data load
-data <- read_csv("data/cleaned_weighted_data.csv") %>%
+data <- read_csv("data/cleaned_analysis_data.csv") %>%
   mutate(aki_max = case_when(
     aki_max == "no aki" ~ "No aki",
     aki_max == "s1" ~ "S1",
@@ -18,10 +18,14 @@ data <- read_csv("data/cleaned_weighted_data.csv") %>%
   ))
 
 # label matched_data
-labelled::var_label(data) <- list(
-  group = 'tCMS group',
-  aki_max = 'Maximal AKI stadium'
-)
+label(data$rrt_group)    <- "Renal replacement therapy"
+label(data$group)        <- "tMCS group"
+label(data$age)          <- "Age"
+label(data$sex)          <- "Sex"
+label(data$bmi)          <- "BMI"
+label(data$pre_cr)       <- "Creatinine (prior to tMCS)"
+label(data$log_vis_score) <- "log(Vasoactive-inotropic score)"
+label(data$aki_max)         <- "Max KDIGO AKI Stage"
 
 # secondary hypothesis 1 ---
 # survival to hospital discharge in patients treated with tMCS or CS suffering
@@ -34,15 +38,16 @@ data %>%
 # fit logistic regression model
 # no aki should be reference level
 reg_data <- data %>%
-  filter(complete.cases(age, sex, bmi, vis_score, pre_cr, rrt_group, aki_max, hosp_surv_yn))
+  select(age, sex, bmi, log_vis_score, pre_cr, rrt_group, aki_max, hosp_surv_yn) %>%
+  filter(complete.cases(.))
 
 model.full <- data %>%
   glm(hosp_surv_yn ~ age + sex + bmi + vis_score + pre_cr + rrt_group + aki_max,
       data = ., family = "quasibinomial")
 
-png("figs/marginal_effects_plot.png", width = 40, height = 30, units = "cm", res = 300)
-plot(effects::predictorEffects(model.full))
-dev.off()
+# png("figs/marginal_effects_plot.png", width = 40, height = 30, units = "cm", res = 300)
+# plot(effects::predictorEffects(model.full))
+# dev.off()
 
 model.full %>%
   tbl_regression(., exponentiate = TRUE) %>%
@@ -71,7 +76,7 @@ linearity_assumption %>%
   theme_bw() +
   facet_wrap(~ predictors, scales = "free_y")
 
-ggsave("figs/linearity_assumption.png", bg = 'white')
+ggsave("regs/diagnostics/sa1/linearity.png", bg = 'white')
 
 # check residuals for patterns
 png("regs/diagnostics/sa1/residuals.png")
@@ -94,4 +99,4 @@ plot_predictions(model.full, type = "invlink(link)", condition = c('aki_max')) +
        y = "Odds ratio for survival to discharge") +
   theme_bw()
 
-ggsave("figs/predicted_prob_survival.png", bg = 'white')
+ggsave("figs/sa1_marginaleffects.png", bg = 'white')

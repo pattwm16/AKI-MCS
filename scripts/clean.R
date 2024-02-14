@@ -444,7 +444,8 @@ constructed <- vent_duration %>%
     rx_nephrotox = replace_na(rx_nephrotox, FALSE),
     ecpr = replace_na(ecpr, FALSE),
     mi_yn = replace_na(mi_yn, FALSE),
-    vent_duration = as.numeric(vent_duration, units = "days")
+    vent_duration = as.numeric(vent_duration, units = "days"),
+    log_vis_score = log(vis_score)
   ) %>%
   filter(row_number() == 1) %>%    # condense to a single row per patient
   filter(!is.na(hosp_surv_yn)) %>%      # only include patient with outcomes
