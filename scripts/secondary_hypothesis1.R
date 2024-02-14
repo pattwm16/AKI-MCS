@@ -66,6 +66,7 @@ predicted.classes <- ifelse(probabilities > 0.5, "Survived to discharge", "Died 
 
 linearity_assumption <- as_tibble(cbind(reg_data, probabilities, predicted.classes)) %>%
   mutate(logit = log(probabilities / (1 - probabilities))) %>%
+  select(-probabilities) %>%
   select_if(is.numeric) %>%
   gather(key = "predictors", value = "predictor.value", -logit)
 predictors <- colnames(linearity_assumption)
