@@ -4,6 +4,7 @@ library(broom)
 library(splines)
 library(janitor)
 library(gtsummary)
+library(Hmisc)
 library(tidyverse)
 
 # data load
@@ -72,7 +73,7 @@ plot(resid(model.full), type = "p")
 dev.off()
 
 # check for collinearity
-vif(model.full)
+car::vif(model.full)
 
 # check for influential values
 png("regs/diagnostics/pa1/outliers.png")

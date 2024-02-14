@@ -3,6 +3,7 @@ library(MatchIt)
 library(broom)
 library(janitor)
 library(gtsummary)
+library(Hmisc)
 library(tidyverse)
 
 # data load
@@ -59,7 +60,7 @@ plot(resid(model.full), type = "p")
 dev.off()
 
 # check for collinearity
-vif(model.full, type = 'predictor')
+car::vif(model.full, type = 'predictor')
 
 # check for influential values
 png("regs/diagnostics/sa2/outliers.png")

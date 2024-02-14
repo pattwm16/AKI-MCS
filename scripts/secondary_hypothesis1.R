@@ -3,7 +3,8 @@ library(MatchIt)
 library(broom)
 library(janitor)
 library(gtsummary)
-library(effects)
+library(marginaleffects)
+library(Hmisc)
 library(tidyverse)
 
 # data load
@@ -70,11 +71,11 @@ linearity_assumption <- as_tibble(cbind(reg_data, probabilities, predicted.class
 predictors <- colnames(linearity_assumption)
 
 linearity_assumption %>%
-  ggplot(aes(logit, predictor.value)) +
+  ggplot(aes(predictor.value, exp(logit))) +
   geom_point(size = 0.5, alpha = 0.5) +
   geom_smooth(method = "loess") +
   theme_bw() +
-  facet_wrap(~ predictors, scales = "free_y")
+  facet_wrap(~ predictors, scales = "free_x")
 
 ggsave("regs/diagnostics/sa1/linearity.png", bg = 'white')
 
@@ -84,7 +85,7 @@ plot(resid(model.full), type = "p")
 dev.off()
 
 # check for collinearity
-vif(model.full)
+car::vif(model.full)
 
 # check for influential values
 png("regs/diagnostics/sa1/outliers.png")
