@@ -137,13 +137,15 @@ clean <- data %>%
   ) %>%
 
   # aki staging
+  # TODO: only selecting  either or, not including cases with both
+  # TODO: add AKI:RRT from protocol
   mutate(
     aki_s1 = as.logical((aki_1_1 == 1) | (aki_1_2 == 1)),
     aki_s2 = as.logical((aki_2 == 2)),
     aki_s3 = as.logical(((aki_3_1 == 3) | (aki_3_2 == 3))),
+    # TODO: rrt_yn == TRUE & aki_max %in% c("s2", "s3").will1021
     aki_rrt = as.logical(aki_3_2 == 3),
   ) %>%
-  # TODO: add AKI:RRT from protocol
 
   # fill vertically for time-invariant factors
   group_by(record_id) %>%

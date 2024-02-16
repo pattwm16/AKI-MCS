@@ -69,7 +69,7 @@ ggsave("regs/diagnostics/pa1/linearity.png", bg = 'white')
 
 # check residuals for patterns
 png("regs/diagnostics/pa1/residuals.png")
-plot(resid(model.full), type = "p")
+plot(resid(model.full))
 dev.off()
 
 # check for collinearity
@@ -77,7 +77,7 @@ car::vif(model.full)
 
 # check for influential values
 png("regs/diagnostics/pa1/outliers.png")
-plot(model.full, which = 4, id.n = 3)
+plot(model.full, which = 4, id.n)
 dev.off()
 
 # marginal effects
