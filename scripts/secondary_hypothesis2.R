@@ -27,11 +27,11 @@ data %>%
 
 # fit logistic regression model
 reg_data <- data %>%
-  select(age, sex, bmi, vis_score, pre_cr, rrt_group, group, aki_max, hosp_surv_yn) %>%
+  select(age, sex, bmi, log_vis_score, rrt_group, group, aki_yn, hosp_surv_yn) %>%
   filter(complete.cases(.))
 
 model.full <- data %>%
-  glm(hosp_surv_yn ~ age + sex + bmi + log_vis_score + pre_cr + rrt_group + group * aki_yn,
+  glm(hosp_surv_yn ~ age + sex + bmi + log_vis_score + rrt_group + group * aki_yn,
       family = "binomial", data = .)
 
 # check linearity
@@ -56,18 +56,21 @@ ggsave("regs/diagnostics/sa2/linearity.png", bg = 'white')
 
 # check residuals for patterns
 png("regs/diagnostics/sa2/residuals.png")
-plot(resid(model.full), type = "p")
+plot(resid(model.full), type = "t")
 dev.off()
 
 # check for collinearity
-car::vif(model.full, type = 'predictor')
+car::vif(model.full, type = 't') %>%
+  as_tibble(rownames = "predictors") %>%
+  select(predictors, df = Df, gvif = GVIF) %>%
+  write_csv("regs/diagnostics/sa2/vif.csv")
 
 # check for influential values
 png("regs/diagnostics/sa2/outliers.png")
 plot(model.full, which = 4, id.n = 3)
 dev.off()
 
-plot(effects::predictorEffect(model.full, pred = "group", xlevels = list(group = c("ECMELLA", "va-ECLS"))))
+plot(effects::predictorEffect(model.full, pred = c("group"), xlevels = list(group = c("ECMELLA", "va-ECLS"))))
 
 model.full %>%
   tbl_regression(., exponentiate = TRUE) %>%

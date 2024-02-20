@@ -455,6 +455,13 @@ constructed <- vent_duration %>%
   filter(hosp_los >= lubridate::ddays(0)) %>%
   ungroup()
 
+# add in fixed aki_max
+aki_fixed <- read_csv("data/AKImax.csv") %>%
+  select(record_id, AKI_max) %>%
+  mutate(AKI_max = factor(AKI_max))
+
+label(aki_fixed$record_id) <- "Record ID"
+
 # create gradated RRT groups
 constructed <- mutate(constructed,
                       rrt_group = case_when(
@@ -463,7 +470,16 @@ constructed <- mutate(constructed,
                         !pre_rrt_yn & rrt_yn ~ "RRT during tMCS only",
                         pre_rrt_yn & rrt_yn ~ "RRT before and during tMCS"
                       )) %>%
-                      mutate(rrt_group = fct_relevel(rrt_group, "RRT before and during tMCS", after = Inf))
+                      mutate(rrt_group = fct_relevel(rrt_group, "RRT before and during tMCS", after = Inf)) %>%
+  select(-aki_max) %>% # get rid of old aki_max
+  left_join(., aki_fixed, by = "record_id") %>%
+  mutate(aki_max = case_when(
+    AKI_max == "0" ~ "No AKI",
+    AKI_max == "1" ~ "AKI stage 1",
+    AKI_max == "2" ~ "AKI stage 2",
+    AKI_max == "3" ~ "AKI stage 3",
+    ),
+    .keep = "unused")
 
 # examine data distribution and types
 write_csv(constructed, "data/cleaned_analysis_data.csv",

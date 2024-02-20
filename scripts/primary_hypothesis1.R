@@ -73,7 +73,10 @@ plot(resid(model.full))
 dev.off()
 
 # check for collinearity
-car::vif(model.full)
+car::vif(model.full) %>%
+  as_tibble(rownames = "predictors") %>%
+  select(predictors, df = Df, gvif = GVIF) %>%
+  write_csv("regs/diagnostics/pa1/vif.csv")
 
 # check for influential values
 png("regs/diagnostics/pa1/outliers.png")
