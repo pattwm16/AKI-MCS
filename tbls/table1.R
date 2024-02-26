@@ -8,7 +8,9 @@ data <- read_csv("data/cleaned_analysis_data.csv") %>%
   mutate(cs_etiology = forcats::fct_relevel(cs_etiology, "Other", , after = 3)) %>%
   mutate(ckd_stage = as.ordered(ckd_stage)) %>%
   mutate(copd_stage = as.ordered(copd_stage)) %>%
-  mutate(pre_ph = pre_ph / 100)
+  mutate(pre_ph = pre_ph / 100) #%>%
+  # ensure this reflects the regression dataset
+  #filter(complete.cases(age, sex, bmi, pre_lactate, log_vis_score, rrt_group, group, aki_max, aki_yn, hosp_surv_yn))
 
 # parse labels and units
 label(data$age)          <- "Age"

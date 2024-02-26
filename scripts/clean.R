@@ -483,6 +483,16 @@ constructed <- mutate(constructed,
     ),
     .keep = "unused")
 
+# fix vis_score
+fixed_vis_score <- read_csv("data/VIScores_corrected.csv") %>%
+  janitor::clean_names() %>%
+  select(record_id, calc_vis) %>%
+  mutate(fixed_vis_score = as.numeric(calc_vis), .keep = "unused")
+
+constructed <- left_join(constructed, fixed_vis_score, by = "record_id") %>%
+  select(-vis_score) %>%
+  mutate(vis_score = fixed_vis_score, .keep = "unused")
+
 # examine data distribution and types
 write_csv(constructed, "data/cleaned_analysis_data.csv",
           na = "NA", append = FALSE)

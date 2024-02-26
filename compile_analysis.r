@@ -15,6 +15,4 @@ source("tbls/table2.R")
 #source("scripts/matching.R")
 
 # finally, run the analysis
-source("scripts/primary_hypothesis1.R")
-source("scripts/secondary_hypothesis1.R")
-source("scripts/secondary_hypothesis2.R")
+source("scripts/regression.R")

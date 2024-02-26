@@ -13,7 +13,8 @@ data <- read_csv("data/cleaned_analysis_data.csv") %>%
     aki_max == "s3" ~ "Stage 3",
     aki_max == "rrt" ~ "RRT",
     TRUE ~ aki_max
-  ))
+  )) %>%
+  mutate(aki_max = fct_relevel(aki_max, "No AKI", "AKI stage 1", "AKI stage 2", "AKI stage 3", "RRT"))
 
 # parse label
 label(data$aki_max)         <- "Max KDIGO AKI Stage" # TODO: during what time were we looking?
