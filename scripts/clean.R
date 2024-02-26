@@ -143,7 +143,7 @@ clean <- data %>%
     aki_s1 = as.logical((aki_1_1 == 1) | (aki_1_2 == 1)),
     aki_s2 = as.logical((aki_2 == 2)),
     aki_s3 = as.logical(((aki_3_1 == 3) | (aki_3_2 == 3))),
-    # TODO: rrt_yn == TRUE & aki_max %in% c("s2", "s3").will1021
+    # TODO: rrt_yn == TRUE & aki_max %in% c("s2", "s3")
     aki_rrt = as.logical(aki_3_2 == 3),
   ) %>%
 
@@ -474,10 +474,12 @@ constructed <- mutate(constructed,
   select(-aki_max) %>% # get rid of old aki_max
   left_join(., aki_fixed, by = "record_id") %>%
   mutate(aki_max = case_when(
+    # TODO: RRT defined as AKI 2 or 3 and rrt?
+    AKI_max %in% c("2", "3") & rrt_yn ~ "RRT",
     AKI_max == "0" ~ "No AKI",
     AKI_max == "1" ~ "AKI stage 1",
     AKI_max == "2" ~ "AKI stage 2",
-    AKI_max == "3" ~ "AKI stage 3",
+    AKI_max == "3" ~ "AKI stage 3"
     ),
     .keep = "unused")
 
